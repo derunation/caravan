@@ -167,6 +167,9 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     private boolean tripTentDeducted;
     /** 需求（疾病）：上次无帐篷过夜累计患病概率的游戏日（防同夜重复累计）。 */
     private long lastIllnessNightDay = -1;
+    /** 需求（回归机制）：回归后延迟解除隐形的倒计时（1 殖民地刻 = STATE_TICK），
+     *  防止在回归瞬间立即现形。 */
+    private int revealDelayTicks;
     /** 需求（消耗品）：当前火把差额请求的令牌（建筑请求，送达小屋存储）。 */
     private IToken<?> torchRequestToken;
     /** 需求（统计）：本次行程累计消耗的火把/食物/帐篷数量（回归通报用）。 */
@@ -1538,7 +1541,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             }
             final Component message = Component.translatable("com.caravan.trip_summary",
                 caravanIndex(), sold, received,
-                torchConsumedTotal, foodConsumedTotal, tentConsumedTotal, sickCount);
+                torchConsumedTotal, foodConsumedTotal, tentConsumedTotal, sickCount,
+                job.hungryCount());
             for (final var player : world.players())
             {
                 player.sendSystemMessage(message);
@@ -2840,7 +2844,9 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     }
                 }
             }
-            worker.setInvisible(false);
+            // 需求（回归机制）：解除隐形后延 1 殖民地刻——先保持隐形完成
+            // 回程结算/传送，由 RETURN 状态的第一次 tick 再解除。
+            revealDelayTicks = STATE_TICK;
             restoreSuppliesAndResults();
             // 需求（bug修复）：重新出现时立即把建筑标记为脏，让客户端尽快同步
             // “消失状态=false”，使旅行地图标记在出现瞬间就消失（而非到达小屋后）。
@@ -3071,6 +3077,15 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     private IAIState returnFromTrip()
     {
         updateLeaderStatus(CaravanStatus.TRADING);
+        // 需求（回归机制）：回归后第 1 个殖民地刻解除领袖隐形（倒计时由回归分支设置）。
+        if (revealDelayTicks > 0)
+        {
+            revealDelayTicks -= STATE_TICK;
+            if (revealDelayTicks <= 0)
+            {
+                worker.setInvisible(false);
+            }
+        }
         // 需求（文本显示）：向小屋移动 → 展示“返回中”。
         job.setDisplayPhase(JobCaravanLeader.AwayPhase.RETURNING);
         if (!walkToBuilding())

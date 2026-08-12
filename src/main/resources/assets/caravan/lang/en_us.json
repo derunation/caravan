@@ -71,6 +71,8 @@
   "com.caravan.gui.log.status.night_travel": "Night Traveling",
   "com.caravan.gui.log.consumables": "Consumables:",
   "com.caravan.gui.log.consumables.none": "The caravan needs a tent to brave the night, a torch to give us light, and food to keep us bright.",
+  "com.caravan.gui.log.saturation.none": "No one in the caravan is hungry",
+  "com.caravan.gui.log.saturation.hungry": "%s caravan member(s) are hungry",
   "item.caravan.caravan_tent": "Caravan Tent",
   "item.caravan.caravan_tent.tooltip": "Used when the caravan camps overnight on a trip. Spending the night without a tent increases the risk of illness.",
   "com.caravan.gui.log.trades": "Trades:",
@@ -117,5 +119,5 @@
   "com.caravan.chat.accepted": "[Caravan] Accepted a request from %s: %s x%s",
   "com.caravan.chat.prepared": "[Caravan] The request from %s (%s x%s) will be traded on the next departure.",
   "com.caravan.chat.completed": "[Caravan] The request from %s (%s x%s) has been completed.",
-  "com.caravan.trip_summary": "[Caravan %s] Back in the colony. Sold %s items, received %s items, used %s torches, %s food, %s tents; %s villager(s) fell ill from camping without a tent."
+  "com.caravan.trip_summary": "[Caravan %s] Back in the colony. Sold %s items, received %s items, used %s torches, %s food, %s tents; %s villager(s) fell ill from camping without a tent; %s villager(s) are hungry."
 }

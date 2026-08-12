@@ -1074,6 +1074,7 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         double speed = Math.min(0.5, BASE_MOVEMENT_SPEED + lowestAgility() * 0.003D);
         // 需求：每有一名商队人员饥饿（饱食度 0），移动速度 -5%。
         speed *= Math.max(0.0D, 1.0D - hungryCount() * 0.05D);
+        // 需求：最低移动速度 1 格/20 刻（1 殖民地刻）——防止速度归零后商队永远无法回归。
         return Math.max(1, (int) Math.round(10.0 * speed / BASE_MOVEMENT_SPEED));
     }
 

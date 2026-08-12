@@ -12,6 +12,7 @@ import com.ldtteam.blockui.controls.ItemIcon;
 import com.ldtteam.blockui.views.ScrollingList;
 import com.minecolonies.api.colony.buildings.views.IBuildingView;
 import com.minecolonies.core.client.gui.AbstractModuleWindow;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -32,8 +33,8 @@ import java.util.List;
 public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
 {
     private static final String LIST_TRADES = "trades";
-    /** 需求（消耗品）：日志页单行布局中各消耗品类别的图标槽位数（帐篷-食物-火把）。 */
-    private static final int TENT_ICONS = 4;
+    /** 需求（消耗品）：日志页单行布局中各消耗品类别的图标槽位数（帐篷-食物-饱食度-火把）。 */
+    private static final int TENT_ICONS = 3;
     private static final int FOOD_ICONS = 3;
     private static final int TORCH_ICONS = 3;
 
@@ -118,13 +119,19 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
         updateConsumableIcons(moduleView.getFoodStacks(), "foodIcon", FOOD_ICONS);
         updateConsumableIcons(moduleView.getTorchStacks(), "torchIcon", TORCH_ICONS);
         // 需求（饥饿）：食物图标右侧显示饱食度图标——无人饥饿 = 满饱食度图标（熟鸡腿），
-        // 有人饥饿 = 空饱食度图标（生鸡腿）。
+        // 有人饥饿 = 空饱食度图标（生鸡腿）；Tooltip 显示饿肚子人数。
         final ItemIcon saturationIcon = findPaneOfTypeByID("saturationIcon", ItemIcon.class);
         if (saturationIcon != null)
         {
             saturationIcon.setVisible(true);
-            saturationIcon.setItem(new ItemStack(
-                moduleView.getHungryCount() > 0 ? Items.CHICKEN : Items.COOKED_CHICKEN));
+            final ItemStack saturationStack = new ItemStack(
+                moduleView.getHungryCount() > 0 ? Items.CHICKEN : Items.COOKED_CHICKEN);
+            saturationStack.set(DataComponents.CUSTOM_NAME, Component.translatable(
+                moduleView.getHungryCount() > 0
+                    ? "com.caravan.gui.log.saturation.hungry"
+                    : "com.caravan.gui.log.saturation.none",
+                moduleView.getHungryCount()));
+            saturationIcon.setItem(saturationStack);
         }
         final Text tentInfo = findPaneOfTypeByID("tentInfo", Text.class);
         final Text consumablesTitle = findPaneOfTypeByID("consumablesTitle", Text.class);

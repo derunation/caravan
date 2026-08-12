@@ -206,15 +206,13 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
         // 需求：同步“下一个目的地将要进行的第一条交易”的结果物品图标，
         // 供旅行地图标记使用；回程阶段无下一目的地时传空物品。
         ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, nextDestinationTradeIcon(job));
-        // 需求（消耗品）：商队领袖/成员背包中的每顶帐篷独立图标（各含耐久度条）。
-        // 需求（饥饿）：每有一名饥饿（饱食度 0）的商队人员，显示帐篷数 -1（下限 0）。
+        // 需求（消耗品）：商队领袖/成员背包中的每顶帐篷独立图标（各含耐久度条），
+        // 显示上限 3 顶（不与饥饿人数挂钩）。
         final java.util.List<ItemStack> tents = caravanTents(job);
-        final int hungry = job.hungryCount();
-        final int tentCount = Math.max(0, tents.size() - hungry);
-        buffer.writeVarInt(tentCount);
-        for (int i = 0; i < tentCount; i++)
+        buffer.writeVarInt(tents.size());
+        for (final ItemStack tent : tents)
         {
-            ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, tents.get(i));
+            ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, tent);
         }
         // 需求（消耗品）：菜单选定的食物——每个堆叠一个图标（带数量角标）。
         final java.util.List<ItemStack> foods = caravanFoods(job);
@@ -230,8 +228,8 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
         {
             ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, torch);
         }
-        // 需求（饥饿）：同步饥饿人数，客户端据此显示饱食度图标（满/空）。
-        buffer.writeVarInt(hungry);
+        // 需求（饥饿）：同步饥饿人数，客户端据此显示饱食度图标（满/空）与 Tooltip。
+        buffer.writeVarInt(job.hungryCount());
     }
 
     /** 需求（旅行地图）：当前游戏时间是否处于“殖民地睡眠时间”窗口。 */
@@ -284,8 +282,8 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
                 final ItemStack stack = entity.getInventoryCitizen().getStackInSlot(slot);
                 if (stack.getItem() == com.example.caravan.CaravanMod.CARAVAN_TENT.get())
                 {
-                    // 同耐久度的帐篷可能堆叠（count > 1），按数量拆成独立单格栈。
-                    for (int i = 0; i < stack.getCount() && tents.size() < 4; i++)
+                    // 同耐久度的帐篷可能堆叠（count > 1），按数量拆成独立单格栈（上限 3 顶）。
+                    for (int i = 0; i < stack.getCount() && tents.size() < 3; i++)
                     {
                         final ItemStack single = stack.copy();
                         single.setCount(1);

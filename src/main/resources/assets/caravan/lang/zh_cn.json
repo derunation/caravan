@@ -71,6 +71,8 @@
   "com.caravan.gui.log.status.night_travel": "夜行中",
   "com.caravan.gui.log.consumables": "消耗品：",
   "com.caravan.gui.log.consumables.none": "商队需要帐篷抵御寒风，火把照亮夜路，食物温暖肠胃",
+  "com.caravan.gui.log.saturation.none": "商队中没有人饿肚子",
+  "com.caravan.gui.log.saturation.hungry": "商队中有%s人饿肚子",
   "item.caravan.caravan_tent": "商队帐篷",
   "item.caravan.caravan_tent.tooltip": "商队在外扎营过夜时使用，无帐篷过夜将增加患病风险。",
   "com.caravan.gui.log.trades": "交易内容：",
@@ -117,5 +119,5 @@
   "com.caravan.chat.accepted": "【商队】已接到来自%s的%s×%s请求。",
   "com.caravan.chat.prepared": "【商队】来自%s的%s×%s请求将在下次出发时进行交易。",
   "com.caravan.chat.completed": "【商队】来自%s的%s×%s请求已完成。"
-  ,"com.caravan.trip_summary": "【商队%s】回到殖民地，共售出 %s 件物品，获得 %s 件物品，消耗 %s 火把，%s 食物，%s 帐篷，%s 人因无帐篷野营而患病"
+  ,"com.caravan.trip_summary": "【商队%s】回到殖民地，共售出 %s 件物品，获得 %s 件物品，消耗 %s 火把，%s 食物，%s 帐篷，%s 人因无帐篷野营而患病，%s 人处于饥饿状态"
 }
