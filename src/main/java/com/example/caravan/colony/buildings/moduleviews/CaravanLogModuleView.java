@@ -62,6 +62,8 @@ public class CaravanLogModuleView extends AbstractBuildingModuleView
     private final List<ItemStack> foodStacks = new ArrayList<>();
     /** 需求（消耗品）：商队携带的火把堆叠（带数量角标；无则空列表）。 */
     private final List<ItemStack> torchStacks = new ArrayList<>();
+    /** 需求（饥饿）：商队中饱食度为 0 的人数（客户端显示饱食度图标用）。 */
+    private int hungryCount;
 
     @Override
     public void deserialize(final RegistryFriendlyByteBuf buffer)
@@ -179,6 +181,7 @@ public class CaravanLogModuleView extends AbstractBuildingModuleView
                 torchStacks.add(torch);
             }
         }
+        hungryCount = buffer.readVarInt();
     }
 
     private static BlockPos readPos(final RegistryFriendlyByteBuf buffer)
@@ -310,5 +313,11 @@ public class CaravanLogModuleView extends AbstractBuildingModuleView
     public List<ItemStack> getTorchStacks()
     {
         return torchStacks;
+    }
+
+    /** 需求（饥饿）：商队中饱食度为 0（饥饿）的人数。 */
+    public int getHungryCount()
+    {
+        return hungryCount;
     }
 }

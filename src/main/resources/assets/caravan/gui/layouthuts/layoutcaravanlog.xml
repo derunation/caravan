@@ -23,19 +23,21 @@
             </box>
         </view>
     </list>
-    <!-- 需求（GUI）：消耗品单行——帐篷-食物-火把按顺序排布：
-         帐篷每顶独立图标（含耐久度条），食物/火把每个堆叠一个图标（带数量角标）。 -->
+    <!-- 需求（GUI）：消耗品单行——帐篷-食物-饱食度-火把按顺序排布：
+         帐篷每顶独立图标（含耐久度条），食物/火把每个堆叠一个图标（带数量角标），
+         饱食度图标在食物右侧（无人饥饿=满图标，有人饥饿=空图标）。 -->
     <text id="consumablesTitle" size="160 11" pos="15 185" textalign="MIDDLE" color="black"
           label="$(com.caravan.gui.log.consumables)"/>
-    <itemicon id="tentIcon0" size="16 16" pos="15 196"/>
-    <itemicon id="tentIcon1" size="16 16" pos="31 196"/>
-    <itemicon id="tentIcon2" size="16 16" pos="47 196"/>
-    <itemicon id="tentIcon3" size="16 16" pos="63 196"/>
-    <itemicon id="foodIcon0" size="16 16" pos="79 196"/>
-    <itemicon id="foodIcon1" size="16 16" pos="95 196"/>
-    <itemicon id="foodIcon2" size="16 16" pos="111 196"/>
-    <itemicon id="torchIcon0" size="16 16" pos="127 196"/>
-    <itemicon id="torchIcon1" size="16 16" pos="143 196"/>
-    <itemicon id="torchIcon2" size="16 16" pos="159 196"/>
+    <itemicon id="tentIcon0" size="16 16" pos="14 196"/>
+    <itemicon id="tentIcon1" size="16 16" pos="30 196"/>
+    <itemicon id="tentIcon2" size="16 16" pos="46 196"/>
+    <itemicon id="tentIcon3" size="16 16" pos="62 196"/>
+    <itemicon id="foodIcon0" size="16 16" pos="78 196"/>
+    <itemicon id="foodIcon1" size="16 16" pos="94 196"/>
+    <itemicon id="foodIcon2" size="16 16" pos="110 196"/>
+    <itemicon id="saturationIcon" size="16 16" pos="126 196"/>
+    <itemicon id="torchIcon0" size="16 16" pos="142 196"/>
+    <itemicon id="torchIcon1" size="16 16" pos="158 196"/>
+    <itemicon id="torchIcon2" size="16 16" pos="174 196"/>
     <text id="tentInfo" size="150 22" pos="20 196" textalign="MIDDLE_LEFT" color="black" wrap="true"/>
 </window>

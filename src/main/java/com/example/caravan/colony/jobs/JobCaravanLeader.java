@@ -1021,13 +1021,59 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         return lowest;
     }
 
+    /** 需求（饥饿）：商队人员（领袖 + 全部成员）中饱食度为 0（饥饿）的人数。 */
+    public int hungryCount()
+    {
+        int count = isHungry(getCitizen()) ? 1 : 0;
+        try
+        {
+            final IBuilding work = getCitizen().getWorkBuilding();
+            if (work != null)
+            {
+                for (final WorkerBuildingModule module : work.getModulesByType(WorkerBuildingModule.class))
+                {
+                    if (module.getJobEntry().getKey().equals(CaravanMod.JOB_CARAVAN_MEMBER.getKey()))
+                    {
+                        for (final ICitizenData member : module.getAssignedCitizen())
+                        {
+                            if (isHungry(member))
+                            {
+                                count++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (final Exception ignored)
+        {
+            // 忽略，按当前已统计人数处理。
+        }
+        return count;
+    }
+
+    /** 需求（饥饿）：市民饱食度是否为 0（饥饿）。 */
+    private static boolean isHungry(final ICitizenData data)
+    {
+        try
+        {
+            return ((com.minecolonies.core.colony.CitizenData) data).getSaturation() <= 0.0D;
+        }
+        catch (final Exception ignored)
+        {
+            return false;
+        }
+    }
+
     /**
      * 需求（商队速度）：每 20 刻的距离减少量——
      * 基准 10 格 ×（最低敏捷对应的速度 / 基础速度），速度 = min(0.5, 0.3 + 敏捷×0.003)。
      */
     public int simulatedDistancePerStep()
     {
-        final double speed = Math.min(0.5, BASE_MOVEMENT_SPEED + lowestAgility() * 0.003D);
+        double speed = Math.min(0.5, BASE_MOVEMENT_SPEED + lowestAgility() * 0.003D);
+        // 需求：每有一名商队人员饥饿（饱食度 0），移动速度 -5%。
+        speed *= Math.max(0.0D, 1.0D - hungryCount() * 0.05D);
         return Math.max(1, (int) Math.round(10.0 * speed / BASE_MOVEMENT_SPEED));
     }
 

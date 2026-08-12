@@ -16,6 +16,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -116,6 +117,15 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
         updateConsumableIcons(tents, "tentIcon", TENT_ICONS);
         updateConsumableIcons(moduleView.getFoodStacks(), "foodIcon", FOOD_ICONS);
         updateConsumableIcons(moduleView.getTorchStacks(), "torchIcon", TORCH_ICONS);
+        // 需求（饥饿）：食物图标右侧显示饱食度图标——无人饥饿 = 满饱食度图标（熟鸡腿），
+        // 有人饥饿 = 空饱食度图标（生鸡腿）。
+        final ItemIcon saturationIcon = findPaneOfTypeByID("saturationIcon", ItemIcon.class);
+        if (saturationIcon != null)
+        {
+            saturationIcon.setVisible(true);
+            saturationIcon.setItem(new ItemStack(
+                moduleView.getHungryCount() > 0 ? Items.CHICKEN : Items.COOKED_CHICKEN));
+        }
         final Text tentInfo = findPaneOfTypeByID("tentInfo", Text.class);
         final Text consumablesTitle = findPaneOfTypeByID("consumablesTitle", Text.class);
         // 需求（GUI）：取消标题隐藏——无论有无消耗品，“消耗品：”标题始终显示。
@@ -255,6 +265,8 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
             hash = hash * 31 + Item.getId(torch.getItem());
             hash = hash * 31 + torch.getCount();
         }
+        // 需求（饥饿）：饥饿人数变化时刷新饱食度图标。
+        hash = hash * 31 + moduleView.getHungryCount();
         hash = hash * 31 + (moduleView.getAwayPhase() == JobCaravanLeader.AwayPhase.TRADING
             ? moduleView.getAwayTradeTicks()
             : moduleView.getAwayDistance());

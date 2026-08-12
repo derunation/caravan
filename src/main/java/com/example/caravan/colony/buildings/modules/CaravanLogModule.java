@@ -79,7 +79,8 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
             {
                 return false;
             }
-            final long dayTime = world.getGameTime() % 24000L;
+            // 修复bug：昼夜判定用真实 dayTime（与商队 AI 一致，避免睡觉跳夜晚后偏移）。
+            final long dayTime = world.getDayTime() % 24000L;
             long sunset = 12000L;
             try
             {
@@ -206,11 +207,14 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
         // 供旅行地图标记使用；回程阶段无下一目的地时传空物品。
         ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, nextDestinationTradeIcon(job));
         // 需求（消耗品）：商队领袖/成员背包中的每顶帐篷独立图标（各含耐久度条）。
+        // 需求（饥饿）：每有一名饥饿（饱食度 0）的商队人员，显示帐篷数 -1（下限 0）。
         final java.util.List<ItemStack> tents = caravanTents(job);
-        buffer.writeVarInt(tents.size());
-        for (final ItemStack tent : tents)
+        final int hungry = job.hungryCount();
+        final int tentCount = Math.max(0, tents.size() - hungry);
+        buffer.writeVarInt(tentCount);
+        for (int i = 0; i < tentCount; i++)
         {
-            ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, tent);
+            ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, tents.get(i));
         }
         // 需求（消耗品）：菜单选定的食物——每个堆叠一个图标（带数量角标）。
         final java.util.List<ItemStack> foods = caravanFoods(job);
@@ -226,6 +230,8 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
         {
             ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, torch);
         }
+        // 需求（饥饿）：同步饥饿人数，客户端据此显示饱食度图标（满/空）。
+        buffer.writeVarInt(hungry);
     }
 
     /** 需求（旅行地图）：当前游戏时间是否处于“殖民地睡眠时间”窗口。 */
@@ -238,7 +244,8 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
             {
                 return false;
             }
-            final long dayTime = world.getGameTime() % 24000L;
+            // 修复bug：昼夜判定用真实 dayTime（与商队 AI 一致）。
+            final long dayTime = world.getDayTime() % 24000L;
             double sleepStart = 12600.0;
             try
             {

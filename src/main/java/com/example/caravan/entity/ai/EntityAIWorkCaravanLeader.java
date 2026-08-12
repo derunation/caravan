@@ -176,8 +176,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     /** 需求（统计）：当天消耗的食物/火把数量（每日扎营总结日志用）。 */
     private int foodConsumedToday;
     private int torchConsumedToday;
-    /** 需求（统计）：上次输出每日扎营总结的游戏日。 */
-    private long lastSummaryDay = -1;
     /** 需求（bug 修复）：上次扎营扣除帐篷耐久的游戏日（防重，替代 sleeping 标志）。 */
     private long lastTentDeductDay = -1;
     /** 需求（模拟状态机）：上次“露宿中醒来”提升患病概率的游戏日（防重）。 */
@@ -368,7 +366,9 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     /** 是否为“白天开始”（dayTime 0~99，即日出后约 5 秒内）。 */
     private boolean isDayStart()
     {
-        return world.getGameTime() % 24000L < 100L;
+        // 修复bug：昼夜判定必须用真实 dayTime——玩家睡觉跳过夜晚时 dayTime 跳变、
+        // gameTime 不跳，二者偏差会永久累积，导致商队作息错乱。
+        return world.getDayTime() % 24000L < 100L;
     }
 
     /** 是否已在小屋“存储容器”旁（半径 6 格内，只有此处才允许存取小屋存储）。 */
@@ -1157,7 +1157,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 final ItemStack stack = inventory.getStackInSlot(slot);
                 if (stack.getItem() == com.example.caravan.CaravanMod.CARAVAN_TENT.get())
                 {
-                    final int beforeRemaining = stack.getMaxDamage() - stack.getDamageValue();
                     if (actuallyDeduct)
                     {
                         stack.setDamageValue(stack.getDamageValue() + x);
@@ -1171,22 +1170,9 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                         // 实体卸载/重载后帐篷耐久会回退到旧值，必须标记背包 dirty。
                         inventory.markDirty();
                     }
-                    // 需求（诊断）：扎营扣耐久输出（每天一次，不刷屏）。
-                    com.example.caravan.CaravanMod.LOGGER.info(
-                        "Caravan: [商队{}] 扎营扣耐久 耐久 {}→{}（人数 {}，状态 {}）",
-                        caravanIndex(), beforeRemaining,
-                        stack.getMaxDamage() - stack.getDamageValue(),
-                        x, job.getCampStatus());
                     return;
                 }
             }
-        }
-        // 需求（诊断）：扎营时未找到任何帐篷（背包帐篷数）。
-        if (actuallyDeduct)
-        {
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: [商队{}] 扎营未找到帐篷（背包帐篷数 {}，状态 {}）",
-                caravanIndex(), countTentsInCaravan(), job.getCampStatus());
         }
     }
 
@@ -1209,9 +1195,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
         lastIllnessNightDay = day;
         final boolean hasTent = countTentsInCaravan() > 0;
-        // 需求（诊断）：每日输出时间判定上下文——入睡时刻/日落/研究强度/物品/阶段，
-        // 用于核对“扎营中”触发时间与 sleepStartTime 是否一致（不依赖状态变化）。
-        logCampDiagnostics("每日扎营总结");
         // 需求（日志）：每天输出扎营总结（世界游戏日 + 当天消耗 + 帐篷/患病情况）。
         // 注：帐篷耐久扣除与患病概率提升已由模拟状态机在“扎营/露宿醒来”时执行。
         if (hasTent)
@@ -1232,41 +1215,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（诊断）：输出“扎营/露宿”时间判定的完整上下文——
-     * 当前 gameTime 日刻、真实 dayTime 日刻、入睡时刻（sleepStartTime）、日落时刻、
-     * WORK_LONGER 研究强度、火把/帐篷数量、帐篷耐久、去程阶段与当前模拟状态。
-     * 供测试核对判定结果与各输入值是否一致（定位“扎营中触发过晚”问题）。
-     */
-    private void logCampDiagnostics(final String reason)
-    {
-        double longer = 0.0;
-        try
-        {
-            longer = job.getColony().getResearchManager()
-                .getResearchEffects()
-                .getEffectStrength(ResearchConstants.WORK_LONGER);
-        }
-        catch (final Exception ignored)
-        {
-            // 研究系统未就绪。
-        }
-        com.example.caravan.CaravanMod.LOGGER.info(
-            "Caravan: [商队{}] {}诊断：gameTime日刻 {}，dayTime日刻 {}，入睡时刻 {}，日落 {}，"
-                + "WORK_LONGER强度 {}，火把 {}，帐篷 {}（耐久 {}），阶段 {}，状态 {}",
-            caravanIndex(), reason,
-            world.getGameTime() % 24000L,
-            world.getDayTime() % 24000L,
-            sleepStartTime(),
-            sunsetTime(),
-            longer,
-            countTorchesInCaravan(),
-            countTentsInCaravan(),
-            tentDurabilityForLog(),
-            job.getAwayPhase(),
-            job.getCampStatus());
-    }
-
-    /**
      * 需求（模拟旅行状态机·重构）：每殖民地刻按“当前时间 + 商队物品”决策模拟状态。
      * <ol>
      *   <li>时间 ≥ 殖民地工作时间 或 时间 < 100 刻（凌晨）：停止移动——
@@ -1280,7 +1228,9 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
      */
     private JobCaravanLeader.CampStatus decideCampStatus()
     {
-        final long dayTime = world.getGameTime() % 24000L;
+        // 修复bug：昼夜判定改用真实 dayTime（玩家睡觉/时间命令会使 dayTime 跳变而
+        // gameTime 不变，用 gameTime 判定会导致扎营/醒来时刻随偏差漂移）。
+        final long dayTime = world.getDayTime() % 24000L;
         final JobCaravanLeader.CampStatus previous = job.getCampStatus();
         final boolean hasTent = countTentsInCaravan() > 0;
         final boolean hasTorch = hasAnyTorchInCaravan();
@@ -1336,12 +1286,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         {
             job.setCampStatus(status);
             building.markDirty();
-            // 需求（日志）：状态变化时输出“当前时间XXX刻，商队状态[YYY]”。
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: [商队{}] 当前时间 {} 刻，商队状态 [{}]",
-                caravanIndex(), world.getGameTime() % 24000L, status);
-            // 需求（诊断）：状态变化时同步输出判定上下文（入睡时刻/日落/研究强度/物品）。
-            logCampDiagnostics("状态变化->" + status);
         }
         return status;
     }
@@ -2046,7 +1990,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     /** 是否为允许出发的时间窗（需求3）：每日 1000 刻起，至正午 6000 刻止。 */
     private boolean isDepartureTime()
     {
-        final long dayTime = world.getGameTime() % 24000L;
+        // 修复bug：出发时间窗同样基于真实 dayTime（避免睡觉后窗口偏移）。
+        final long dayTime = world.getDayTime() % 24000L;
         return dayTime >= 1000L && dayTime < 6000L;
     }
 
@@ -2832,6 +2777,13 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     private IAIState stayAway()
     {
         updateLeaderStatus(CaravanStatus.TRADING);
+        // 修复bug：AWAY 模拟期间保持隐形——实体重载后 invisible 标志不持久化，
+        // 丢失后商队领袖会被 minecolonies 睡眠机制在夜间接管（job AI 暂停，
+        // 导致夜间不扎营、清晨才补 CAMP）。穿越殖民地（步行现身）期间除外。
+        if (!job.isWalkingThroughColony() && !worker.isInvisible())
+        {
+            worker.setInvisible(true);
+        }
         // 每日扎营总结（消耗统计）。
         accumulateNightIllness();
         // 食物：商队人员饱食度不足时食用菜单选定的食物。
