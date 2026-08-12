@@ -1,0 +1,70 @@
+<window xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/ldtteam/BlockUI/version/main/src/main/resources/assets/blockui/gui/block_ui.xsd"
+        size="190 244">
+    <image source="minecolonies:textures/gui/builderhut/builder_paper.png" size="190 244"/>
+
+    <!-- 一级：村民列表（用 view 而非 group：group 会垂直重排子元素，导致 pos 失效） -->
+    <view id="villagerPage">
+        <!-- 需求：标题上移 40 后再次下移 20 像素（34 → -6 → 14）。 -->
+        <text size="160 11" pos="15 14" textalign="MIDDLE" color="black"
+              label="$(com.caravan.gui.trades.villagers)"/>
+        <list id="villagers" size="166 180" pos="12 27">
+            <view size="100% 26">
+                <box id="villagerBox" size="100% 26" linewidth="1">
+                    <button id="villagerSelect" size="100% 26" pos="0 0" color="black"
+                            source="minecolonies:textures/gui/builderhut/builder_button_medium.png" label=""/>
+                    <!-- 第一行：职业/名称  距离/传送石碑名称 -->
+                    <text id="villagerInfo" size="152 10" pos="6 3" textalign="MIDDLE_LEFT" color="black"/>
+                    <!-- 第二行：等级 + 经验进度（示例：新手 8/10） -->
+                    <text id="villagerXp" size="120 9" pos="6 15" textalign="MIDDLE_LEFT" color="black"/>
+                    <!-- 需求：经验已满时在绿宝石左侧显示附魔之瓶，悬停提示“拜访村民以获得更多交易”。 -->
+                    <itemicon id="levelIcon" size="12 12" pos="132 13"
+                              tooltip="$(com.caravan.gui.trades.levelup_tip)"/>
+                    <!-- 需求：有激活交易的村民以 MC 原版绿宝石图标代替“交易”文本。 -->
+                    <itemicon id="activeIcon" size="12 12" pos="148 13"
+                              tooltip="$(com.caravan.gui.trades.active_tip)"/>
+                </box>
+            </view>
+        </list>
+        <!-- 需求（总览）：右下角【总览】按钮——查看/调整激活交易执行顺序。 -->
+        <button id="overviewButton" size="62 12" pos="116 214" color="black"
+                source="minecolonies:textures/gui/builderhut/builder_button_mini.png"
+                label="$(com.caravan.gui.overview)"/>
+    </view>
+
+    <!-- 二级：单个村民的交易页 -->
+    <view id="tradePage" visible="false">
+        <!-- 需求：初始文本分为两行，上移 40 后再下移 20——第一行职业/名称，第二行坐标。 -->
+        <text id="pageTitle" size="166 11" pos="12 14" textalign="MIDDLE" color="black"/>
+        <text id="pageSubTitle" size="166 11" pos="12 26" textalign="MIDDLE" color="black"/>
+        <!-- 需求：可用交易表高度 -10（185 → 175），按钮相应上移至 y=218。 -->
+        <list id="trades" size="166 175" pos="12 39">
+            <box id="row" size="100% 46" linewidth="1">
+                <text id="costLabel" size="26 11" pos="4 3" textalign="MIDDLE_LEFT" color="black"/>
+                <itemicon id="costA" size="16 16" pos="32 2"/>
+                <itemicon id="costB" size="16 16" pos="52 2"/>
+                <text id="resultLabel" size="26 11" pos="76 3" textalign="MIDDLE_LEFT" color="black"/>
+                <itemicon id="result" size="16 16" pos="104 2"/>
+                <button id="qtyDown" size="14 12" pos="18 26" color="black"
+                        source="minecolonies:textures/gui/builderhut/builder_button_mini.png" label="-"/>
+                <text id="qty" size="22 11" pos="34 26" textalign="MIDDLE" color="black"/>
+                <button id="qtyUp" size="14 12" pos="58 26" color="black"
+                        source="minecolonies:textures/gui/builderhut/builder_button_mini.png" label="+"/>
+                <button id="select" size="77 12" pos="76 26" color="black"
+                        source="minecolonies:textures/gui/builderhut/builder_button_medium_large.png"/>
+            </box>
+        </list>
+        <!-- 需求：左下角【删除】按钮（与右下角【返回】对称），删除当前村民及其全部交易。 -->
+        <!-- 需求：三个按钮宽度一致（均为 40），分别对齐左下角、中间下方、右下角。 -->
+        <button id="deleteButton" size="40 12" pos="12 218" color="black"
+                source="minecolonies:textures/gui/builderhut/builder_button_mini.png"
+                label="$(com.caravan.gui.trades.delete)"/>
+        <!-- 需求：【重命名】按钮，位于【删除】与【返回】之间，弹出名称输入框。 -->
+        <button id="renameButton" size="40 12" pos="75 218" color="black"
+                source="minecolonies:textures/gui/builderhut/builder_button_mini.png"
+                label="$(com.caravan.gui.trades.rename)"/>
+        <button id="backButton" size="40 12" pos="138 218" color="black"
+                source="minecolonies:textures/gui/builderhut/builder_button_mini.png"
+                label="$(com.caravan.gui.trades.back)"/>
+    </view>
+</window>

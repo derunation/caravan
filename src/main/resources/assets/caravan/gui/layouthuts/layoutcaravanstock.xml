@@ -1,0 +1,23 @@
+<window xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/ldtteam/BlockUI/version/main/src/main/resources/assets/blockui/gui/block_ui.xsd"
+        size="190 244">
+    <image source="minecolonies:textures/gui/builderhut/builder_paper.png" size="190 244"/>
+    <text size="160 11" pos="15 14" textalign="MIDDLE" color="black"
+          label="$(com.caravan.gui.settings)"/>
+    <!-- 需求（GUI）：绿宝石模块文字与输入框间距缩短（与帐篷/食物/火把模块一致）。 -->
+    <text size="160 11" pos="15 30" color="black" textalign="MIDDLE"
+          label="$(com.caravan.gui.stock.help)"/>
+    <input id="stockInput" size="60 18" pos="65 42"/>
+    <!-- 需求（设置）：帐篷携带量输入框，样式与绿宝石最低存量输入框一致。 -->
+    <text size="160 11" pos="15 66" textalign="MIDDLE" color="black"
+          label="$(com.caravan.gui.settings.tent_count)"/>
+    <input id="tentCountInput" size="60 18" pos="65 78"/>
+    <!-- 需求（设置）：食物携带组数（菜单页选择食物后按此组数保留）。 -->
+    <text size="160 11" pos="15 102" textalign="MIDDLE" color="black"
+          label="$(com.caravan.gui.settings.food_count)"/>
+    <input id="foodCountInput" size="60 18" pos="65 114"/>
+    <!-- 需求（设置）：火把携带组数（夜晚行进消耗）。 -->
+    <text size="160 11" pos="15 138" textalign="MIDDLE" color="black"
+          label="$(com.caravan.gui.settings.torch_count)"/>
+    <input id="torchCountInput" size="60 18" pos="65 150"/>
+</window>

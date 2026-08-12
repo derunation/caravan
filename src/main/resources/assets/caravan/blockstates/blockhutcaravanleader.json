@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "caravan:block/blockhutcaravanleader",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "caravan:block/blockhutcaravanleader",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "caravan:block/blockhutcaravanleader",
+      "y": 270
+    },
+    "facing=north": {
+      "model": "caravan:block/blockhutcaravanleader",
+      "y": 0
+    }
+  }
+}

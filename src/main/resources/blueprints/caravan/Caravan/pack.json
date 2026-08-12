@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "pack-format": 1,
+  "name": "Caravan",
+  "icon": "tradepost.png",
+  "authors": [
+    "Codex Test"
+  ],
+  "desc": "Caravan test style pack with the Caravan Leader hut.",
+  "mods": [
+    "structurize",
+    "caravan"
+  ]
+}

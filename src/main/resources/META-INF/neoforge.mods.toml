@@ -1,0 +1,49 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "MIT"
+
+[[mods]]
+modId = "caravan"
+    version = "0.6.35"
+displayName = "Caravan - MineColonies Addon"
+description = '''A test MineColonies addon that adds the Caravan Leader profession, a caravan marker item and a caravan hut.
+The Caravan Leader trades with vanilla villagers in distant villages: he requests the trade goods through the MineColonies request system, walks out of the colony, vanishes for 1-10 in-game days and returns with the trade results.'''
+authors = "Codex Test"
+
+[[mixins]]
+config = "caravan.mixins.json"
+
+[[dependencies.caravan]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1.0,22.0.0)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.caravan]]
+modId = "minecolonies"
+type = "required"
+versionRange = "[1.1.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.caravan]]
+modId = "structurize"
+type = "required"
+versionRange = "[1.0.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.caravan]]
+modId = "domum_ornamentum"
+type = "required"
+versionRange = "[1.0.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.caravan]]
+modId = "blockui"
+type = "required"
+versionRange = "[1.0.0,)"
+ordering = "AFTER"
+side = "BOTH"

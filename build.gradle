@@ -1,0 +1,99 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev' version '1.0.23'
+}
+
+version = '0.6.35'
+group = 'com.example'
+
+base {
+    archivesName = 'caravan'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+neoForge {
+    version = '21.1.107'
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+        }
+    }
+
+    mods {
+        caravan {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+repositories {
+    maven { url = 'https://ldtteam.jfrog.io/ldtteam/modding' }
+    mavenCentral()
+}
+
+dependencies {
+    // MineColonies 1.21.1 is not published on a public Maven, so the local
+    // distribution jar (next to this project) is used for compilation.
+    implementation files(rootProject.file('../minecolonies-1.1.1285-1.21.1.jar'))
+
+    // Structurize / BlockUI come from the LDT Team Maven.
+    // JEI is excluded: the LDT Maven only hosts an old JEI build, and MineColonies
+    // requires a newer one. JEI is optional for both MineColonies and this mod.
+    // Prefer the official Structurize build from the local game instance when
+    // available (the Maven beta crashes on dedicated servers).
+    def officialStructurize = file('F:/MC/Instances/Rome1.21.1/mods/structurize-1.0.810-1.21.1-snapshot.jar')
+    if (officialStructurize.exists()) {
+        implementation files(officialStructurize)
+    } else {
+        implementation("com.ldtteam:structurize:1.21.1-1.0.746-beta") {
+            exclude group: 'mezz.jei'
+        }
+    }
+    implementation("com.ldtteam:blockui:1.21.1-1.0.182-beta") {
+        exclude group: 'mezz.jei'
+    }
+    // domum_ornamentum is a runtime-scoped dependency of structurize, but the
+    // colony building tile entity hierarchy references its classes, so it must
+    // also be on the compile classpath.
+    implementation("com.ldtteam:domum-ornamentum:1.21.1-1.0.200-BETA") {
+        exclude group: 'mezz.jei'
+    }
+    // Waystones（仅编译期 + 运行期可选）：交易列表页面把目标位置 100 格内的
+    // Waystone 名称作为“距离”显示；未安装 Waystones 时自动降级为距离数字。
+    def waystonesJar = file('F:/MC/Instances/Rome1.21.1/mods/waystones-neoforge-1.21.1-21.1.38.jar')
+    if (waystonesJar.exists()) {
+        implementation files(waystonesJar)
+    }
+    // Waystones 的方块实体类依赖 Balm API（同实例 mods 文件夹内）。
+    def balmJar = file('F:/MC/Instances/Rome1.21.1/mods/balm-neoforge-1.21.1-21.0.63.jar')
+    if (balmJar.exists()) {
+        implementation files(balmJar)
+    }
+    // JourneyMap API（从实例的 journeymap jar 中提取的嵌套 API jar，编译期使用；
+    // 未安装 JourneyMap 时插件类不会被加载，功能自动停用）。
+    def journeyMapApiJar = file('libs/journeymap-api-neoforge-2.0.0-1.21.1.jar')
+    if (journeyMapApiJar.exists()) {
+        implementation files(journeyMapApiJar)
+    }
+    // EclipticSeasons（仅编译期 + 运行期可选）：按季节动态修改白天长度，
+    // 商队夜间赶路的“日落时刻”使用其 API 计算（未安装时回退原版日落 12000）。
+    def eclipticSeasonsJar = file('F:/MC/Instances/Rome1.21.1/mods/EclipticSeasons-1.21.1-neoforge-0.14.0.jar')
+    if (eclipticSeasonsJar.exists()) {
+        implementation files(eclipticSeasonsJar)
+    }
+}
+
+tasks.named('jar', Jar) {
+    // Leftover from the old pack layout (file is locked and cannot be deleted).
+    // Exclude it so the shipped jar never contains the empty "Trade Post" pack.
+    exclude 'blueprints/caravan/Trade Post/**'
+}
