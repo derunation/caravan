@@ -143,6 +143,16 @@ public abstract class AbstractAISkeletonMixin
             {
                 // 待命/驻守中索敌（补充卫兵自身的威胁检测）。
                 caravan$scanAndThreaten();
+                // 需求（诊断）：驻守期间也输出战斗信息——仅在有威胁或处于
+                // ATTACKING 时输出（节流 200 刻），避免平时刷屏。
+                final LivingEntity threatTarget = worker instanceof IThreatTableEntity threat
+                    ? threat.getThreatTable().getTargetMob()
+                    : null;
+                if (getState() == com.minecolonies.api.entity.ai.combat.CombatAIStates.ATTACKING
+                    || threatTarget != null)
+                {
+                    caravan$diag("驻守中");
+                }
             }
         }
     }

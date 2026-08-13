@@ -1776,6 +1776,12 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         updateLeaderStatus(CaravanStatus.TRADING);
         // 需求（文本显示）：向交易目标移动 → 展示“旅行中”。
         job.setDisplayPhase(JobCaravanLeader.AwayPhase.OUTBOUND);
+        // 需求（商队护卫）：护卫卫兵战斗时领袖停等（出发步行阶段同样生效，
+        // 不再仅限于 AWAY 模拟阶段）。
+        if (guardsBlockMovement())
+        {
+            return CaravanState.DEPART;
+        }
         if (!job.hasPendingTripTrades())
         {
             return CaravanState.RETURN;
@@ -3063,12 +3069,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     continue; // 模拟旅行中（消失）不参与判定。
                 }
                 anyVisible = true;
-                // 战斗判定：卫兵 AI 是否正处于 ATTACKING（原版战斗状态机）。
-                // 修复：此前用“威胁表非空”判定——豁免名单内的怪物（如玩家关闭索敌的
-                // 史莱姆）会被我们的扫描加入威胁表但卫兵不会攻击，导致领袖误报等待。
-                final com.minecolonies.api.entity.ai.ITickingStateAI guardAI = guard.getCitizenJobHandler().getWorkAI();
-                if (guardAI != null
-                    && guardAI.getState() == com.minecolonies.api.entity.ai.combat.CombatAIStates.ATTACKING)
+                if (guardInCombat(guard))
                 {
                     anyCombat = true;
                 }
@@ -3100,6 +3101,29 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 guardsWereInCombat = false; // 全部归队 → 继续移动。
             }
             return false;
+        }
+        catch (final Exception ignored)
+        {
+            return false;
+        }
+    }
+
+    /** 战斗判定：卫兵 AI 处于 ATTACKING（原版战斗状态机），或在最近 3 秒内
+     *  攻击过/受到攻击（捕捉状态机切换间隙的短暂战斗，避免漏检）。
+     *  注意：不能用“威胁表非空”判定——豁免名单怪物会被扫描加入威胁表但不战斗。 */
+    private boolean guardInCombat(final AbstractEntityCitizen guard)
+    {
+        try
+        {
+            final com.minecolonies.api.entity.ai.ITickingStateAI guardAI = guard.getCitizenJobHandler().getWorkAI();
+            if (guardAI != null
+                && guardAI.getState() == com.minecolonies.api.entity.ai.combat.CombatAIStates.ATTACKING)
+            {
+                return true;
+            }
+            final long now = world.getGameTime();
+            return (guard.getLastHurtMob() != null && now - guard.getLastHurtMobTimestamp() < 60)
+                || (guard.getLastAttacker() != null && now - guard.getLastHurtByMobTimestamp() < 60);
         }
         catch (final Exception ignored)
         {
@@ -3191,6 +3215,11 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
         // 需求（文本显示）：向小屋移动 → 展示“返回中”。
         job.setDisplayPhase(JobCaravanLeader.AwayPhase.RETURNING);
+        // 需求（商队护卫）：回归步行阶段同样等待护卫卫兵结束战斗并归队。
+        if (guardsBlockMovement())
+        {
+            return CaravanState.RETURN;
+        }
         if (!walkToBuilding())
         {
             return CaravanState.RETURN;
