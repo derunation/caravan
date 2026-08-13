@@ -2782,6 +2782,10 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         job.vanish(firstDistance, worker.blockPosition());
         worker.setInvisible(true);
         setSimulationInvulnerable(true);
+        // 需求（成员同步·修复掉队）：领袖消失时直接把全部已加载成员传送到消失点并
+        // 一并隐形——此前成员需自行寻路到消失点，路径受阻/进食/寻路失败时
+        // 单个成员会掉队（且回归传送只处理已隐形成员，掉队者被跳过）。
+        syncMembersTo(worker.blockPosition(), true);
     }
 
     /** 需求（保护机制）：模拟旅行（隐形）期间无敌并清空威胁表——
@@ -2801,6 +2805,34 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         catch (final Exception ignored)
         {
             // 保护设置失败不影响逻辑。
+        }
+    }
+
+    /** 需求（成员同步）：把全部已加载成员传送到指定位置并统一设置隐形/无敌状态。 */
+    private void syncMembersTo(final BlockPos pos, final boolean invisible)
+    {
+        for (final AbstractEntityCitizen member : caravanMembers())
+        {
+            try
+            {
+                member.teleportTo(
+                    pos.getX() + 0.5 + world.random.nextInt(3) - 1,
+                    worker.blockPosition().getY(),
+                    pos.getZ() + 0.5 + world.random.nextInt(3) - 1);
+                member.getNavigation().stop();
+                member.setInvisible(invisible);
+                member.setInvulnerable(invisible);
+                if (member instanceof com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity threat)
+                {
+                    threat.getThreatTable().resetTable();
+                }
+                member.setLastHurtByMob(null);
+                member.setTarget(null);
+            }
+            catch (final Exception ignored)
+            {
+                // 单个成员同步失败不影响其余成员与领袖。
+            }
         }
     }
 
@@ -2876,17 +2908,9 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     worker.blockPosition().getY(),
                     returnPos.getZ() + 0.5);
                 worker.getNavigation().stop();
-                for (final AbstractEntityCitizen member : caravanMembers())
-                {
-                    if (member.isInvisible())
-                    {
-                        member.teleportTo(
-                            returnPos.getX() + 0.5 + world.random.nextInt(3) - 1,
-                            worker.blockPosition().getY(),
-                            returnPos.getZ() + 0.5 + world.random.nextInt(3) - 1);
-                        member.getNavigation().stop();
-                    }
-                }
+                // 需求（成员同步·修复掉队）：回归传送覆盖全部已加载成员
+                // （不再只传送已隐形成员，掉队者也会被拉回）。
+                syncMembersTo(returnPos, false);
             }
             // 需求（回归机制）：解除隐形后延 1 殖民地刻——先保持隐形完成
             // 回程结算/传送，由 RETURN 状态的第一次 tick 再解除。
@@ -2968,23 +2992,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     worker.blockPosition().getY(),
                     entry.getZ() + 0.5);
                 // 需求（穿越殖民地）：整个商队一同在入口 A 重新出现并步行至出口 B。
-                for (final AbstractEntityCitizen member : caravanMembers())
-                {
-                    if (member.isInvisible())
-                    {
-                        member.teleportTo(
-                            entry.getX() + 0.5 + world.random.nextInt(3) - 1,
-                            worker.blockPosition().getY(),
-                            entry.getZ() + 0.5 + world.random.nextInt(3) - 1);
-                        member.getNavigation().stop();
-                        member.setInvisible(false);
-                        member.setInvulnerable(false);
-                        if (member instanceof com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity threat)
-                        {
-                            threat.getThreatTable().resetTable();
-                        }
-                    }
-                }
+                // 需求（成员同步·修复掉队）：入口现身同样覆盖全部已加载成员。
+                syncMembersTo(entry, false);
             }
             worker.getNavigation().stop();
             colonyWalkTicks = 0;
@@ -3023,6 +3032,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
         worker.setInvisible(true);
         setSimulationInvulnerable(true);
+        // 需求（成员同步·修复掉队）：穿越出口 B 重新消失时一并同步成员。
+        syncMembersTo(worker.blockPosition(), true);
         job.finishColonyWalk();
     }
 

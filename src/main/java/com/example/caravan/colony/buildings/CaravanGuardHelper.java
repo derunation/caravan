@@ -152,6 +152,33 @@ public final class CaravanGuardHelper
         return result;
     }
 
+    /** 殖民地中所有“商队护卫”模式且被商队小屋选中的卫兵总数（含未加载的指派市民）。 */
+    public static int caravanGuardCount(final IColony colony)
+    {
+        int count = 0;
+        if (colony == null || colony.getServerBuildingManager() == null)
+        {
+            return 0;
+        }
+        final BuildingCaravanLeader hut = findCaravanHut(colony);
+        if (hut == null)
+        {
+            return 0;
+        }
+        for (final IBuilding building : colony.getServerBuildingManager().getBuildings().values())
+        {
+            if (!isCaravanTower(building) || !isTowerAssigned(building, hut))
+            {
+                continue;
+            }
+            for (final WorkerBuildingModule module : building.getModulesByType(WorkerBuildingModule.class))
+            {
+                count += module.getAssignedCitizen().size();
+            }
+        }
+        return count;
+    }
+
     /** 从商队小屋工作模块中查找商队领袖的 job。 */
     private static JobCaravanLeader findLeaderJob(final BuildingCaravanLeader hut)
     {

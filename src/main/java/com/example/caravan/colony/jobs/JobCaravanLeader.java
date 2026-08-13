@@ -1068,12 +1068,15 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     /**
      * 需求（商队速度）：每 20 刻的距离减少量——
      * 基准 10 格 ×（最低敏捷对应的速度 / 基础速度），速度 = min(0.5, 0.3 + 敏捷×0.003)。
+     * 需求（商队护卫）：每有一名护卫卫兵，模拟旅行速度 +10%。
      */
     public int simulatedDistancePerStep()
     {
         double speed = Math.min(0.5, BASE_MOVEMENT_SPEED + lowestAgility() * 0.003D);
         // 需求：每有一名商队人员饥饿（饱食度 0），移动速度 -5%。
         speed *= Math.max(0.0D, 1.0D - hungryCount() * 0.05D);
+        // 需求：每有一名商队护卫，模拟旅行移动速度 +10%。
+        speed *= 1.0D + 0.1D * com.example.caravan.colony.buildings.CaravanGuardHelper.caravanGuardCount(getColony());
         // 需求：最低移动速度 1 格/20 刻（1 殖民地刻）——防止速度归零后商队永远无法回归。
         return Math.max(1, (int) Math.round(10.0 * speed / BASE_MOVEMENT_SPEED));
     }

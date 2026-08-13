@@ -150,6 +150,17 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
         }
         if (worker.blockPosition().distSqr(leader.blockPosition()) > FOLLOW_DISTANCE * FOLLOW_DISTANCE)
         {
+            // 需求（成员同步·修复掉队）：超过 100 格直接传送到领袖旁，
+            // 避免长时间寻路导致单个成员掉队。
+            if (worker.blockPosition().distSqr(leader.blockPosition()) > 100 * 100)
+            {
+                worker.teleportTo(
+                    leader.getX() + world.random.nextInt(3) - 1,
+                    leader.getY(),
+                    leader.getZ() + world.random.nextInt(3) - 1);
+                worker.getNavigation().stop();
+                return MemberState.FOLLOW_LEADER;
+            }
             walkToUnSafePos(leader.blockPosition());
             return MemberState.FOLLOW_LEADER;
         }
@@ -182,6 +193,17 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
         }
         if (worker.blockPosition().distSqr(leader.blockPosition()) > VANISH_RANGE_SQUARED)
         {
+            // 需求（成员同步·修复掉队）：超过 100 格直接传送到领袖消失点旁，
+            // 而不是缓慢寻路（消失点可能远在殖民地边界外）。
+            if (worker.blockPosition().distSqr(leader.blockPosition()) > 100 * 100)
+            {
+                worker.teleportTo(
+                    leader.getX() + world.random.nextInt(3) - 1,
+                    leader.getY(),
+                    leader.getZ() + world.random.nextInt(3) - 1);
+                worker.getNavigation().stop();
+                return MemberState.VANISH_PREP;
+            }
             walkToUnSafePos(leader.blockPosition());
             return MemberState.VANISH_PREP;
         }
