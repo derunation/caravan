@@ -1,5 +1,8 @@
 # 商队（Caravan）Mod 更新日志
 
+## 0.8.2
+- 修复崩溃（mixin）：`AbstractEntityAIGuardMixin` 不再 `@Shadow` 父类字段（mixin 无法在目标类解析继承字段）——只 shadow 目标类自身的 `buildingGuards`；指派改为【塔级】（`CaravanGuardModule` 持久化被选中的卫兵塔位置，AI 按卫兵塔位置判定），无需访问卫兵实体字段。
+
 ## 0.8.1
 - 修复崩溃（启动加载失败）：`AbstractEntityAIGuardMixin` 的 `@Shadow building` 字段类型错误（父类声明为 `AbstractBuilding`），导致 mixin `attachFields` 失败、Mod 进入 broken 状态。
 

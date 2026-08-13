@@ -7,30 +7,31 @@ import com.ldtteam.common.network.PlayMessageType;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.buildings.views.IBuildingView;
 import com.minecolonies.core.network.messages.server.AbstractBuildingServerMessage;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-/** 客户端 → 服务器：选中/取消商队小屋【护卫】页中的某名卫兵。 */
+/** 客户端 → 服务器：选中/取消商队小屋【护卫】页中的某座卫兵塔（塔级指派）。 */
 public class CaravanGuardAssignMessage extends AbstractBuildingServerMessage<BuildingCaravanLeader>
 {
     public static final PlayMessageType<?> TYPE =
         PlayMessageType.forServer(CaravanMod.MODID, "guard_assign", CaravanGuardAssignMessage::new);
 
-    private final int citizenId;
+    private final BlockPos towerPos;
     private final boolean assign;
 
-    public CaravanGuardAssignMessage(final IBuildingView buildingView, final int citizenId, final boolean assign)
+    public CaravanGuardAssignMessage(final IBuildingView buildingView, final BlockPos towerPos, final boolean assign)
     {
         super(TYPE, buildingView);
-        this.citizenId = citizenId;
+        this.towerPos = towerPos;
         this.assign = assign;
     }
 
     protected CaravanGuardAssignMessage(final RegistryFriendlyByteBuf buffer, final PlayMessageType<?> type)
     {
         super(buffer, type);
-        this.citizenId = buffer.readVarInt();
+        this.towerPos = new BlockPos(buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt());
         this.assign = buffer.readBoolean();
     }
 
@@ -38,7 +39,9 @@ public class CaravanGuardAssignMessage extends AbstractBuildingServerMessage<Bui
     protected void toBytes(final RegistryFriendlyByteBuf buffer)
     {
         super.toBytes(buffer);
-        buffer.writeVarInt(citizenId);
+        buffer.writeVarInt(towerPos.getX());
+        buffer.writeVarInt(towerPos.getY());
+        buffer.writeVarInt(towerPos.getZ());
         buffer.writeBoolean(assign);
     }
 
@@ -52,7 +55,7 @@ public class CaravanGuardAssignMessage extends AbstractBuildingServerMessage<Bui
         final CaravanGuardModule module = building.getFirstModuleOccurance(CaravanGuardModule.class);
         if (module != null)
         {
-            module.setGuardAssigned(citizenId, assign);
+            module.setTowerAssigned(towerPos, assign);
         }
     }
 }

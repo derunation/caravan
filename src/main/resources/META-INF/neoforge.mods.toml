@@ -4,7 +4,7 @@ license = "MIT"
 
 [[mods]]
 modId = "caravan"
-    version = "0.8.1"
+    version = "0.8.2"
 displayName = "Caravan - MineColonies Addon"
 description = '''A test MineColonies addon that adds the Caravan Leader profession, a caravan marker item and a caravan hut.
 The Caravan Leader trades with vanilla villagers in distant villages: he requests the trade goods through the MineColonies request system, walks out of the colony, vanishes for 1-10 in-game days and returns with the trade results.'''

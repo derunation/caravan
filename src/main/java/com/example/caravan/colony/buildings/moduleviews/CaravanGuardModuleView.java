@@ -3,37 +3,41 @@ package com.example.caravan.colony.buildings.moduleviews;
 import com.example.caravan.client.gui.modules.WindowCaravanGuard;
 import com.ldtteam.blockui.views.BOWindow;
 import com.minecolonies.api.colony.buildings.modules.AbstractBuildingModuleView;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** 需求（商队护卫）：【护卫】页客户端视图——商队护卫模式卫兵列表。 */
+/** 需求（商队护卫）：【护卫】页客户端视图——商队护卫模式卫兵塔列表。 */
 public class CaravanGuardModuleView extends AbstractBuildingModuleView
 {
-    /** 一条护卫卫兵信息。 */
-    public record GuardEntry(int citizenId, String name, boolean assigned)
+    /** 一条护卫卫兵塔信息。 */
+    public record GuardTowerEntry(BlockPos towerPos, String name, int guardCount, boolean assigned)
     {
     }
 
-    private final List<GuardEntry> guards = new ArrayList<>();
+    private final List<GuardTowerEntry> towers = new ArrayList<>();
 
     @Override
     public void deserialize(final RegistryFriendlyByteBuf buffer)
     {
-        guards.clear();
+        towers.clear();
         final int count = buffer.readVarInt();
         for (int i = 0; i < count; i++)
         {
-            guards.add(new GuardEntry(
-                buffer.readVarInt(), buffer.readUtf(), buffer.readBoolean()));
+            towers.add(new GuardTowerEntry(
+                new BlockPos(buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt()),
+                buffer.readUtf(),
+                buffer.readVarInt(),
+                buffer.readBoolean()));
         }
     }
 
-    public List<GuardEntry> getGuards()
+    public List<GuardTowerEntry> getTowers()
     {
-        return guards;
+        return towers;
     }
 
     @Override

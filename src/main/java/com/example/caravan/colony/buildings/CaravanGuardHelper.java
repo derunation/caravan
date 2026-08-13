@@ -1,6 +1,5 @@
 package com.example.caravan.colony.buildings;
 
-import com.example.caravan.colony.buildings.modules.CaravanGuardModule;
 import com.example.caravan.colony.jobs.JobCaravanLeader;
 import com.minecolonies.api.colony.ICitizenData;
 import com.minecolonies.api.colony.IColony;
@@ -33,17 +32,6 @@ public final class CaravanGuardHelper
             }
         }
         return null;
-    }
-
-    /** 该卫兵是否已被商队小屋【护卫】页选中（开始护卫商队）。 */
-    public static boolean isAssignedToCaravan(final BuildingCaravanLeader hut, final int citizenId)
-    {
-        if (hut == null)
-        {
-            return false;
-        }
-        final CaravanGuardModule module = hut.getFirstModuleOccurance(CaravanGuardModule.class);
-        return module != null && module.isGuardAssigned(citizenId);
     }
 
     /** 商队领袖是否处于消失（去程/回程）状态。 */

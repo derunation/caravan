@@ -1,7 +1,6 @@
 package com.example.caravan.colony.buildings.modules;
 
 import com.example.caravan.colony.buildings.CaravanGuardHelper;
-import com.minecolonies.api.colony.ICitizenData;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.buildings.IBuilding;
 import com.minecolonies.api.colony.buildings.IGuardBuilding;
@@ -9,6 +8,7 @@ import com.minecolonies.api.colony.buildings.modules.AbstractBuildingModule;
 import com.minecolonies.api.colony.buildings.modules.IPersistentModule;
 import com.minecolonies.core.colony.buildings.AbstractBuildingGuards;
 import com.minecolonies.core.colony.buildings.modules.GuardBuildingModule;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -20,26 +20,26 @@ import java.util.Set;
 
 /**
  * 需求（商队护卫）：商队小屋【护卫】页的服务端数据源——
- * 持久化“已被选中开始护卫商队”的卫兵 ID 列表；同步殖民地所有
- * 【商队护卫】工作模式的卫兵（ID/名字/是否已指派）给客户端。
+ * 持久化“已被选中开始护卫商队”的卫兵塔位置列表（塔级指派：塔内商队护卫模式的
+ * 卫兵全部护卫）；同步殖民地所有【商队护卫】工作模式的卫兵塔给客户端。
  */
 public class CaravanGuardModule extends AbstractBuildingModule implements IPersistentModule
 {
-    private static final String TAG_ASSIGNED = "assignedGuards";
+    private static final String TAG_ASSIGNED = "assignedTowers";
 
-    /** 已选中护卫商队的卫兵市民 ID。 */
-    private final Set<Integer> guardCitizenIds = new HashSet<>();
+    /** 已选中护卫商队的卫兵塔位置。 */
+    private final Set<BlockPos> assignedTowers = new HashSet<>();
 
-    /** 该卫兵是否已被选中护卫商队。 */
-    public boolean isGuardAssigned(final int citizenId)
+    /** 该卫兵塔是否已被选中护卫商队。 */
+    public boolean isTowerAssigned(final BlockPos towerPos)
     {
-        return guardCitizenIds.contains(citizenId);
+        return assignedTowers.contains(towerPos);
     }
 
-    /** 设置/取消该卫兵的商队护卫指派。 */
-    public void setGuardAssigned(final int citizenId, final boolean assigned)
+    /** 设置/取消该卫兵塔的商队护卫指派。 */
+    public void setTowerAssigned(final BlockPos towerPos, final boolean assigned)
     {
-        final boolean changed = assigned ? guardCitizenIds.add(citizenId) : guardCitizenIds.remove(citizenId);
+        final boolean changed = assigned ? assignedTowers.add(towerPos) : assignedTowers.remove(towerPos);
         if (changed)
         {
             getBuilding().markDirty();
@@ -49,11 +49,13 @@ public class CaravanGuardModule extends AbstractBuildingModule implements IPersi
     @Override
     public void deserializeNBT(final HolderLookup.Provider provider, final CompoundTag compound)
     {
-        guardCitizenIds.clear();
-        final ListTag list = compound.getList(TAG_ASSIGNED, Tag.TAG_INT);
+        assignedTowers.clear();
+        final ListTag list = compound.getList(TAG_ASSIGNED, Tag.TAG_COMPOUND);
         for (int i = 0; i < list.size(); i++)
         {
-            guardCitizenIds.add(list.getInt(i));
+            final CompoundTag tag = list.getCompound(i);
+            assignedTowers.add(new BlockPos(
+                tag.getInt("x"), tag.getInt("y"), tag.getInt("z")));
         }
     }
 
@@ -61,14 +63,18 @@ public class CaravanGuardModule extends AbstractBuildingModule implements IPersi
     public void serializeNBT(final HolderLookup.Provider provider, final CompoundTag compound)
     {
         final ListTag list = new ListTag();
-        for (final int id : guardCitizenIds)
+        for (final BlockPos pos : assignedTowers)
         {
-            list.add(net.minecraft.nbt.IntTag.valueOf(id));
+            final CompoundTag tag = new CompoundTag();
+            tag.putInt("x", pos.getX());
+            tag.putInt("y", pos.getY());
+            tag.putInt("z", pos.getZ());
+            list.add(tag);
         }
         compound.put(TAG_ASSIGNED, list);
     }
 
-    /** 同步：殖民地所有【商队护卫】模式卫兵（ID/名字/是否已指派）。 */
+    /** 同步：殖民地所有【商队护卫】模式卫兵塔（位置/名字/卫兵数/是否已指派）。 */
     @Override
     public void serializeToView(final RegistryFriendlyByteBuf buffer)
     {
@@ -78,16 +84,9 @@ public class CaravanGuardModule extends AbstractBuildingModule implements IPersi
         {
             for (final IBuilding building : colony.getServerBuildingManager().getBuildings().values())
             {
-                if (building instanceof AbstractBuildingGuards guards
-                    && CaravanGuardHelper.CARAVAN_TASK_KEY.equals(((IGuardBuilding) guards).getTask()))
+                if (isCaravanTower(building))
                 {
-                    for (final GuardBuildingModule module : guards.getModulesByType(GuardBuildingModule.class))
-                    {
-                        for (final ICitizenData guard : module.getAssignedCitizen())
-                        {
-                            count++;
-                        }
-                    }
+                    count++;
                 }
             }
         }
@@ -96,20 +95,29 @@ public class CaravanGuardModule extends AbstractBuildingModule implements IPersi
         {
             for (final IBuilding building : colony.getServerBuildingManager().getBuildings().values())
             {
-                if (building instanceof AbstractBuildingGuards guards
-                    && CaravanGuardHelper.CARAVAN_TASK_KEY.equals(((IGuardBuilding) guards).getTask()))
+                if (!isCaravanTower(building))
                 {
-                    for (final GuardBuildingModule module : guards.getModulesByType(GuardBuildingModule.class))
-                    {
-                        for (final ICitizenData guard : module.getAssignedCitizen())
-                        {
-                            buffer.writeVarInt(guard.getId());
-                            buffer.writeUtf(guard.getName());
-                            buffer.writeBoolean(isGuardAssigned(guard.getId()));
-                        }
-                    }
+                    continue;
                 }
+                buffer.writeVarInt(building.getPosition().getX());
+                buffer.writeVarInt(building.getPosition().getY());
+                buffer.writeVarInt(building.getPosition().getZ());
+                buffer.writeUtf(building.getBuildingDisplayName());
+                int guards = 0;
+                for (final GuardBuildingModule module : building.getModulesByType(GuardBuildingModule.class))
+                {
+                    guards += module.getAssignedCitizen().size();
+                }
+                buffer.writeVarInt(guards);
+                buffer.writeBoolean(isTowerAssigned(building.getPosition()));
             }
         }
+    }
+
+    /** 该建筑是否为“商队护卫”工作模式的卫兵塔。 */
+    private static boolean isCaravanTower(final IBuilding building)
+    {
+        return building instanceof AbstractBuildingGuards
+            && CaravanGuardHelper.CARAVAN_TASK_KEY.equals(((IGuardBuilding) building).getTask());
     }
 }
