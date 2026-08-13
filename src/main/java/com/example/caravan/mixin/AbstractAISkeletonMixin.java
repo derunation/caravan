@@ -5,6 +5,7 @@ import com.example.caravan.colony.buildings.CaravanGuardHelper;
 import com.minecolonies.api.colony.ICitizenData;
 import com.minecolonies.api.colony.buildings.IBuilding;
 import com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity;
+import com.minecolonies.api.entity.ai.statemachine.states.IAIState;
 import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
 import com.minecolonies.api.inventory.InventoryCitizen;
 import com.minecolonies.api.util.ItemStackUtils;
@@ -42,6 +43,12 @@ public abstract class AbstractAISkeletonMixin
     @Shadow(remap = false)
     protected AbstractEntityCitizen worker;
 
+    @Shadow(remap = false)
+    public com.minecolonies.api.entity.ai.statemachine.states.IAIState getState()
+    {
+        throw new AbstractMethodError();
+    }
+
     /** 索敌扫描计时器。 */
     private long caravan$lastScan;
     /** 需求（诊断）：最近一次输出卫兵状态日志的时刻（节流 200 刻）。 */
@@ -71,6 +78,8 @@ public abstract class AbstractAISkeletonMixin
                 if (worker.isInvisible())
                 {
                     worker.setInvisible(false);
+                    worker.setInvulnerable(false);
+                    caravan$clearThreats();
                     caravan$restoreEquipment();
                 }
                 caravan$diag("穿越传送跟随");
@@ -89,11 +98,21 @@ public abstract class AbstractAISkeletonMixin
                 return;
             }
             // 未消失：跟随中索敌；到达领袖消失位置附近（3 格）→ 一同消失（隐形+装备暂存）。
+            // 需求（bug 修复）：超过 30 格时原版 follow() 依赖 TeleportHelper，
+            // 而模拟消失点常找不到安全出生点导致传送失败、卫兵原地不动——
+            // 改为直接传送到领袖实体旁（实体所在位置必然是有效坐标）。
+            if (leader != null && worker.distanceToSqr(leader) > 900)
+            {
+                caravan$teleportNear(leader);
+                caravan$diag("远离领袖传送跟随");
+            }
             caravan$scanAndThreaten();
             final BlockPos leaderPos = CaravanGuardHelper.leaderPosition(hut);
             if (leaderPos != null && worker.blockPosition().distSqr(leaderPos) <= 9)
             {
                 worker.setInvisible(true);
+                worker.setInvulnerable(true);
+                caravan$clearThreats();
                 caravan$hideEquipment();
                 caravan$diag("到达消失点一同消失");
                 ci.cancel();
@@ -115,6 +134,8 @@ public abstract class AbstractAISkeletonMixin
                     caravan$teleportNear(leader);
                 }
                 worker.setInvisible(false);
+                worker.setInvulnerable(false);
+                caravan$clearThreats();
                 caravan$restoreEquipment();
                 caravan$diag("模拟结束回归现身");
             }
@@ -139,14 +160,21 @@ public abstract class AbstractAISkeletonMixin
         {
             final BlockPos leaderPos = com.example.caravan.colony.buildings.CaravanGuardHelper.leaderPosition(
                 com.example.caravan.colony.buildings.CaravanGuardHelper.caravanHutForGuard(worker));
+            final IAIState aiState = getState();
+            final LivingEntity threatTarget = worker instanceof IThreatTableEntity threat
+                ? threat.getThreatTable().getTargetMob()
+                : null;
             com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: 护卫卫兵 {}：{}（隐形={}，距领袖 {}）",
+                "Caravan: 护卫卫兵 {}：{}（隐形={}，距领袖 {}，AI状态={}，武器={}，威胁={}）",
                 worker.getCitizenData() != null ? worker.getCitizenData().getName() : "?",
                 reason,
                 worker.isInvisible(),
                 leaderPos != null
                     ? (int) Math.sqrt(worker.blockPosition().distSqr(leaderPos))
-                    : -1);
+                    : -1,
+                aiState,
+                caravan$hasWeapon(),
+                threatTarget != null ? threatTarget.getType().getDescriptionId() : "无");
         }
         catch (final Exception ignored)
         {
@@ -234,8 +262,46 @@ public abstract class AbstractAISkeletonMixin
         for (final LivingEntity entity : worker.level().getEntitiesOfClass(
             LivingEntity.class, box, e -> e != worker && caravan$isEnemy(e)))
         {
-            threat.getThreatTable().addThreat(entity, 20);
+            // 需求（bug 修复）：只加入与卫兵自身距离 ≤35 格的敌人（与
+            // KnightCombatAI 的追击范围一致）——否则威胁表会长期持有
+            // “不可攻击”的敌人，导致领袖的 guardsBlockMovement 误判为战斗中。
+            if (worker.distanceToSqr(entity) <= 35.0 * 35.0)
+            {
+                threat.getThreatTable().addThreat(entity, 20);
+            }
         }
+    }
+
+    /** 清除威胁表与最近攻击者（隐形/回归时调用，防止 mob 继续锁定商队人员）。 */
+    private void caravan$clearThreats()
+    {
+        if (worker instanceof IThreatTableEntity threat)
+        {
+            threat.getThreatTable().resetTable();
+        }
+        worker.setLastHurtByMob(null);
+        worker.setTarget(null);
+    }
+
+    /** 诊断：卫兵是否持有武器（背包或主手）。 */
+    private boolean caravan$hasWeapon()
+    {
+        try
+        {
+            final InventoryCitizen inv = worker.getInventoryCitizen();
+            for (int slot = 0; slot < inv.getSlots(); slot++)
+            {
+                if (ItemStackUtils.doesItemServeAsWeapon(inv.getStackInSlot(slot)))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (final Exception ignored)
+        {
+            // 诊断失败不阻塞。
+        }
+        return ItemStackUtils.doesItemServeAsWeapon(worker.getMainHandItem());
     }
 
     /** 敌对判定：卫兵塔【敌对】列表 + MC 敌对生物接口。 */

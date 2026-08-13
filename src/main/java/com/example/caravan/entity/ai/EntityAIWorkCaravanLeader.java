@@ -2774,6 +2774,27 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
 
         job.vanish(firstDistance, worker.blockPosition());
         worker.setInvisible(true);
+        setSimulationInvulnerable(true);
+    }
+
+    /** 需求（保护机制）：模拟旅行（隐形）期间无敌并清空威胁表——
+     *  防止 mob 在商队消失/模拟阶段攻击商队人员。 */
+    private void setSimulationInvulnerable(final boolean invulnerable)
+    {
+        try
+        {
+            worker.setInvulnerable(invulnerable);
+            if (worker instanceof com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity threat)
+            {
+                threat.getThreatTable().resetTable();
+            }
+            worker.setLastHurtByMob(null);
+            worker.setTarget(null);
+        }
+        catch (final Exception ignored)
+        {
+            // 保护设置失败不影响逻辑。
+        }
     }
 
     /**
@@ -2794,6 +2815,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         if (!job.isWalkingThroughColony() && !worker.isInvisible())
         {
             worker.setInvisible(true);
+            setSimulationInvulnerable(true);
         }
         // 每日扎营总结（消耗统计）。
         accumulateNightIllness();
@@ -2947,12 +2969,18 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                             entry.getZ() + 0.5 + world.random.nextInt(3) - 1);
                         member.getNavigation().stop();
                         member.setInvisible(false);
+                        member.setInvulnerable(false);
+                        if (member instanceof com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity threat)
+                        {
+                            threat.getThreatTable().resetTable();
+                        }
                     }
                 }
             }
             worker.getNavigation().stop();
             colonyWalkTicks = 0;
             worker.setInvisible(false);
+            setSimulationInvulnerable(false);
             return CaravanState.AWAY;
         }
         // 需求（防卡死）：步行超时后强制继续模拟，防止寻路到不可达的出口点
@@ -2985,6 +3013,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             }
         }
         worker.setInvisible(true);
+        setSimulationInvulnerable(true);
         job.finishColonyWalk();
     }
 
@@ -3157,6 +3186,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             if (revealDelayTicks <= 0)
             {
                 worker.setInvisible(false);
+                setSimulationInvulnerable(false);
             }
         }
         // 需求（文本显示）：向小屋移动 → 展示“返回中”。

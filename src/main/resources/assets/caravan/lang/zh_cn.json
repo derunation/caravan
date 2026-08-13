@@ -134,5 +134,7 @@
   "com.caravan.chat.accepted": "【商队】已接到来自%s的%s×%s请求。",
   "com.caravan.chat.prepared": "【商队】来自%s的%s×%s请求将在下次出发时进行交易。",
   "com.caravan.chat.completed": "【商队】来自%s的%s×%s请求已完成。"
-  ,"com.caravan.trip_summary": "【商队%s】回到殖民地，共售出 %s 件物品，获得 %s 件物品，消耗 %s 火把，%s 食物，%s 帐篷，%s 人因无帐篷野营而患病，%s 人处于饥饿状态"
+  ,"com.caravan.trip_summary": "【商队%s】回到殖民地，共售出 %s 件物品，获得 %s 件物品，消耗 %s 火把，%s 食物，%s 帐篷，%s 人因无帐篷野营而患病，%s 人处于饥饿状态",
+  "com.arxyt.colonypathingedition.core.easycolony.colony.read_mind.state.NO_TARGET": "无目标",
+  "com.arxyt.colonypathingedition.core.easycolony.colony.read_mind.state.ATTACKING": "战斗中"
 }

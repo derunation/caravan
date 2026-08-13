@@ -92,6 +92,11 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
         {
             memberVanished = true;
             worker.setInvisible(true);
+            worker.setInvulnerable(true);
+            if (worker instanceof com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity threat)
+            {
+                threat.getThreatTable().resetTable();
+            }
         }
     }
 
@@ -183,6 +188,11 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
         // 到达领袖消失位置：与领袖一同消失。
         worker.getNavigation().stop();
         worker.setInvisible(true);
+        worker.setInvulnerable(true);
+        if (worker instanceof com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity threat)
+        {
+            threat.getThreatTable().resetTable();
+        }
         memberVanished = true;
         return MemberState.VANISHED;
     }
@@ -197,6 +207,13 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
         {
             memberVanished = false;
             worker.setInvisible(false);
+            worker.setInvulnerable(false);
+            if (worker instanceof com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity threat)
+            {
+                threat.getThreatTable().resetTable();
+            }
+            worker.setLastHurtByMob(null);
+            worker.setTarget(null);
             return AIWorkerState.IDLE;
         }
         return MemberState.VANISHED;

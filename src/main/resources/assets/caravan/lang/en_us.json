@@ -134,5 +134,7 @@
   "com.caravan.chat.accepted": "[Caravan] Accepted a request from %s: %s x%s",
   "com.caravan.chat.prepared": "[Caravan] The request from %s (%s x%s) will be traded on the next departure.",
   "com.caravan.chat.completed": "[Caravan] The request from %s (%s x%s) has been completed.",
-  "com.caravan.trip_summary": "[Caravan %s] Back in the colony. Sold %s items, received %s items, used %s torches, %s food, %s tents; %s villager(s) fell ill from camping without a tent; %s villager(s) are hungry."
+  "com.caravan.trip_summary": "[Caravan %s] Back in the colony. Sold %s items, received %s items, used %s torches, %s food, %s tents; %s villager(s) fell ill from camping without a tent; %s villager(s) are hungry.",
+  "com.arxyt.colonypathingedition.core.easycolony.colony.read_mind.state.NO_TARGET": "No Target",
+  "com.arxyt.colonypathingedition.core.easycolony.colony.read_mind.state.ATTACKING": "Attacking"
 }
