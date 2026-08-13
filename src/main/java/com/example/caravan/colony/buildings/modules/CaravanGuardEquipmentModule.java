@@ -178,7 +178,11 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
         return best;
     }
 
-    /** 创建公民请求（关联卫兵，快递员送达市民背包）；已有打开请求则不重复创建。 */
+    /**
+     * 创建真正的公民请求（requester=卫兵市民，快递员直接送达市民背包——
+     * 注意不能使用 {@code building.createRequest(guard, …)}，那只是“关联公民”的
+     * 建筑请求，快递员会送到小屋存储）；已有打开请求则不重复创建。
+     */
     private void requestIfMissing(final ICitizenData guard,
         final Map<String, IToken<?>> requests,
         final String slotKey,
@@ -192,7 +196,8 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
         requests.remove(slotKey);
         try
         {
-            final IToken<?> token = getBuilding().createRequest(guard, requestable, false);
+            final IToken<?> token = ((com.minecolonies.core.colony.CitizenData) guard)
+                .createRequest(requestable);
             requests.put(slotKey, token);
             CaravanMod.LOGGER.info(
                 "Caravan: 创建卫兵装备请求 {}（市民 {}，槽位 {}）",
