@@ -18,6 +18,7 @@
   "com.caravan.job.caravan_member.desc": "Follows the Caravan Leader and carries extra goods for the caravan.",
   "com.caravan.job.caravan_guard": "Caravan Guard",
   "com.caravan.job.caravan_guard.desc": "Guards the caravan while travelling and stands watch at the hut.",
+  "com.caravan.gui.guard_equipment": "Caravan Guard Equipment",
   "caravan:caravan_guard.skills.desc": "Strength increases melee damage; Stamina increases health.",
   "caravan:caravan_member.skills.desc": "Agility increases movement speed; Intelligence reduces the time each trade takes.",
   "com.caravan.gui.settings": "Settings",

@@ -18,6 +18,7 @@
   "com.caravan.job.caravan_member.desc": "跟随商队领袖行动，为商队携带额外的货物。",
   "com.caravan.job.caravan_guard": "商队卫兵",
   "com.caravan.job.caravan_guard.desc": "商队出行时护卫商队，平时驻守商队小屋。",
+  "com.caravan.gui.guard_equipment": "商队卫兵装备",
   "caravan:caravan_guard.skills.desc": "力量提高近战伤害；耐力提高生命值。",
   "caravan:caravan_member.skills.desc": "敏捷提高移动速度；智力降低每笔交易所需时间。",
   "com.caravan.gui.settings": "设置",

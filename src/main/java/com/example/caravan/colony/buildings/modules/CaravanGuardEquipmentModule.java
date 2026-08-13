@@ -87,7 +87,9 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
                 cancelOpen(requests, slotKey);
                 continue;
             }
-            // 构造候选物品：该装备类型下、等级在 [min, max] 范围内的物品（上限 12 个）。
+            // 构造候选物品：该装备类型下、等级在 [min, max] 范围内的物品——
+            // 不设数量上限（多 mod 环境下注册表遍历顺序不定，截断会导致
+            // 部分 mod 的装备无法被请求到；本体基于类型/tag 匹配、无此限制）。
             final List<ItemStack> candidates = new ArrayList<>();
             for (final Item item : BuiltInRegistries.ITEM)
             {
@@ -101,10 +103,6 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
                     && itemLevel <= gear.getMaxLevelRequired())
                 {
                     candidates.add(stack);
-                    if (candidates.size() >= 12)
-                    {
-                        break;
-                    }
                 }
             }
             if (candidates.isEmpty())

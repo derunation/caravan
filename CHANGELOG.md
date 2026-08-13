@@ -1,5 +1,9 @@
 # 商队（Caravan）Mod 更新日志
 
+## 0.7.4
+- 修复（卫兵装备候选列表）：取消候选物品 12 个上限——多 mod 环境下注册表遍历顺序不定，截断会导致部分 mod 装备无法被请求；现收集该装备类型+等级范围内的全部物品（本体基于类型/tag 匹配、无此限制）。
+- 本地化：新增 `com.caravan.gui.guard_equipment`（商队卫兵装备 / Caravan Guard Equipment）。
+
 ## 0.7.3
 - 修复（卫兵装备请求）：改为沿用 Minecolonies 本体卫兵塔模式——按 `GuardGear`（装备槽位/类型/等级范围/建筑等级范围）检查，缺失时以“该类型+等级范围内的候选物品列表”创建【公民请求】（关联卫兵市民，快递员直接送达市民背包）。
 - GUI 修复：饱食度 Tooltip 改用 BlockUI `Tooltip` 控件（`drawSelfLast` 绘制在最上层），解决 onHoverId 隐藏文本不显示、且被物品图标角标遮挡的问题。
