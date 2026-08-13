@@ -47,6 +47,15 @@ public final class CaravanGuardHelper
         return leaderJob != null && leaderJob.isAway();
     }
 
+    /** 商队是否正在出行（未进入模拟旅行，领袖在场且处于行程状态）。 */
+    public static boolean isCaravanTravelling(final BuildingCaravanLeader hut)
+    {
+        final JobCaravanLeader leaderJob = findLeaderJob(hut);
+        return leaderJob != null
+            && !leaderJob.isAway()
+            && leaderJob.getStatus() == JobCaravanLeader.CaravanStatus.TRADING;
+    }
+
     /** 商队领袖实体位置（未加载时回退其家庭位置）。 */
     public static BlockPos leaderPosition(final BuildingCaravanLeader hut)
     {

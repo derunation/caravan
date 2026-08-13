@@ -1155,7 +1155,9 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
      */
     private void deductTentDurability(final boolean actuallyDeduct)
     {
-        final int x = 1 + caravanMembers().size();
+        // 需求（商队护卫）：模拟旅行中护卫卫兵视同商队成员，一并计入帐篷耐久消耗人数。
+        final int x = 1 + caravanMembers().size()
+            + CaravanGuardHelper.caravanGuardCitizens(job.getColony()).size();
         for (final InventoryCitizen inventory : allCaravanInventories())
         {
             for (int slot = 0; slot < inventory.getSlots(); slot++)
@@ -1347,6 +1349,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             final List<AbstractEntityCitizen> caravan = new ArrayList<>();
             caravan.add(worker);
             caravan.addAll(caravanMembers());
+            // 需求（商队护卫）：模拟旅行中护卫卫兵视同商队成员，一并喂食。
+            caravan.addAll(CaravanGuardHelper.caravanGuardCitizens(job.getColony()));
             for (final AbstractEntityCitizen member : caravan)
             {
                 final ICitizenData data = member.getCitizenData();
@@ -3030,7 +3034,9 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     continue; // 模拟旅行中（消失）不参与判定。
                 }
                 anyVisible = true;
-                if (guard.getTarget() != null)
+                // 战斗判定：威胁表目标（卫兵战斗时可能不设置 getTarget）。
+                if (guard instanceof com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity threat
+                    && threat.getThreatTable().getTargetMob() != null)
                 {
                     anyCombat = true;
                 }
@@ -3038,6 +3044,11 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             if (anyCombat)
             {
                 guardsWereInCombat = true;
+                com.example.caravan.CaravanMod.LOGGER.info(
+                    "Caravan: 商队领袖等待——护卫卫兵战斗中（{} 名）",
+                    guards.stream().filter(g -> !g.isInvisible()
+                        && g instanceof com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity t
+                        && t.getThreatTable().getTargetMob() != null).count());
                 return true;
             }
             if (guardsWereInCombat)
@@ -3051,6 +3062,9 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 {
                     if (!guard.isInvisible() && guard.distanceToSqr(worker) > 36)
                     {
+                        com.example.caravan.CaravanMod.LOGGER.info(
+                            "Caravan: 商队领袖等待——护卫卫兵归队中（距离 {}）",
+                            (int) Math.sqrt(guard.distanceToSqr(worker)));
                         return true; // 战斗结束，等待卫兵回到 6 格内。
                     }
                 }

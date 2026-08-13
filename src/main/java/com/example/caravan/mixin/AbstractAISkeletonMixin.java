@@ -44,6 +44,8 @@ public abstract class AbstractAISkeletonMixin
 
     /** 索敌扫描计时器。 */
     private long caravan$lastScan;
+    /** 需求（诊断）：最近一次输出卫兵状态日志的时刻（节流 200 刻）。 */
+    private long caravan$lastDiag;
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true, remap = false)
     private void caravan$guardTick(final CallbackInfo ci)
@@ -71,6 +73,7 @@ public abstract class AbstractAISkeletonMixin
                     worker.setInvisible(false);
                     caravan$restoreEquipment();
                 }
+                caravan$diag("穿越传送跟随");
                 ci.cancel();
                 return;
             }
@@ -80,6 +83,7 @@ public abstract class AbstractAISkeletonMixin
                 if (leader != null && worker.distanceToSqr(leader) > 25)
                 {
                     worker.teleportTo(leader.getX(), leader.getY(), leader.getZ());
+                    caravan$diag("消失位置同步");
                 }
                 ci.cancel();
                 return;
@@ -91,7 +95,13 @@ public abstract class AbstractAISkeletonMixin
             {
                 worker.setInvisible(true);
                 caravan$hideEquipment();
+                caravan$diag("到达消失点一同消失");
                 ci.cancel();
+            }
+            else
+            {
+                caravan$diag("跟随中（距消失点 "
+                    + (leaderPos != null ? (int) Math.sqrt(worker.blockPosition().distSqr(leaderPos)) : -1) + "）");
             }
             // 未到达：由 decide→follow 继续寻路到领袖位置。
         }
@@ -106,12 +116,41 @@ public abstract class AbstractAISkeletonMixin
                 }
                 worker.setInvisible(false);
                 caravan$restoreEquipment();
+                caravan$diag("模拟结束回归现身");
             }
             else
             {
                 // 待命/驻守中索敌（补充卫兵自身的威胁检测）。
                 caravan$scanAndThreaten();
             }
+        }
+    }
+
+    /** 需求（诊断）：节流输出卫兵状态（每 200 刻一次）。 */
+    private void caravan$diag(final String reason)
+    {
+        final long time = worker.level().getGameTime();
+        if (time - caravan$lastDiag < 200)
+        {
+            return;
+        }
+        caravan$lastDiag = time;
+        try
+        {
+            final BlockPos leaderPos = com.example.caravan.colony.buildings.CaravanGuardHelper.leaderPosition(
+                com.example.caravan.colony.buildings.CaravanGuardHelper.caravanHutForGuard(worker));
+            com.example.caravan.CaravanMod.LOGGER.info(
+                "Caravan: 护卫卫兵 {}：{}（隐形={}，距领袖 {}）",
+                worker.getCitizenData() != null ? worker.getCitizenData().getName() : "?",
+                reason,
+                worker.isInvisible(),
+                leaderPos != null
+                    ? (int) Math.sqrt(worker.blockPosition().distSqr(leaderPos))
+                    : -1);
+        }
+        catch (final Exception ignored)
+        {
+            // 诊断失败不影响逻辑。
         }
     }
 

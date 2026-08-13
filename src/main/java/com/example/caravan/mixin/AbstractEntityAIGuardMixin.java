@@ -31,6 +31,8 @@ public abstract class AbstractEntityAIGuardMixin
 {
     /** 需求（诊断）：商队护卫模式诊断是否已输出过（防刷屏）。 */
     private static boolean caravan$diagnosed;
+    /** 需求（诊断）：最近一次输出跟随/驻守诊断的时刻（节流 200 刻）。 */
+    private static long caravan$lastActionLog;
 
     @Shadow(remap = false)
     protected IGuardBuilding buildingGuards;
@@ -56,23 +58,64 @@ public abstract class AbstractEntityAIGuardMixin
             && CaravanGuardHelper.CARAVAN_TASK_KEY.equals(buildingGuards.getTask()))
         {
             caravan$diagnosed = true;
+            final BuildingCaravanLeader diagHut = activeHut();
             com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: 卫兵塔 {} 为【商队护卫】模式（被商队小屋选中={}）",
-                buildingGuards.getPosition(), activeHut() != null);
+                "Caravan: 卫兵塔 {} 为【商队护卫】模式（被选中={}，away={}，出行中={}）",
+                buildingGuards.getPosition(),
+                diagHut != null,
+                diagHut != null && CaravanGuardHelper.isLeaderAway(diagHut),
+                diagHut != null && CaravanGuardHelper.isCaravanTravelling(diagHut));
         }
         final BuildingCaravanLeader hut = activeHut();
         if (hut == null)
         {
             return;
         }
-        if (CaravanGuardHelper.isLeaderAway(hut))
+        if (CaravanGuardHelper.isLeaderAway(hut) || CaravanGuardHelper.isCaravanTravelling(hut))
         {
-            // 领袖消失（模拟旅行）：跟随到领袖位置。
+            // 领袖消失（模拟旅行）或出行未模拟：跟随到领袖位置。
+            long time = 0;
+            try
+            {
+                time = buildingGuards.getColony().getWorld().getGameTime();
+            }
+            catch (final Exception ignored)
+            {
+                // 诊断失败不影响逻辑。
+            }
+            if (time - caravan$lastActionLog >= 200)
+            {
+                caravan$lastActionLog = time;
+                final BlockPos leaderPos = CaravanGuardHelper.leaderPosition(hut);
+                com.example.caravan.CaravanMod.LOGGER.info(
+                    "Caravan: 卫兵塔 {} 跟随（away={}，出行中={}，距领袖 {}）",
+                    buildingGuards.getPosition(),
+                    CaravanGuardHelper.isLeaderAway(hut),
+                    CaravanGuardHelper.isCaravanTravelling(hut),
+                    leaderPos != null
+                        ? (int) Math.sqrt(buildingGuards.getPosition().distSqr(leaderPos))
+                        : -1);
+            }
             cir.setReturnValue(follow());
         }
         else
         {
             // 商队未出发：驻守商队小屋。
+            long time = 0;
+            try
+            {
+                time = buildingGuards.getColony().getWorld().getGameTime();
+            }
+            catch (final Exception ignored)
+            {
+                // 诊断失败不影响逻辑。
+            }
+            if (time - caravan$lastActionLog >= 200)
+            {
+                caravan$lastActionLog = time;
+                com.example.caravan.CaravanMod.LOGGER.info(
+                    "Caravan: 卫兵塔 {} 驻守商队小屋", buildingGuards.getPosition());
+            }
             cir.setReturnValue(guard());
         }
     }
