@@ -1,5 +1,8 @@
 # 商队（Caravan）Mod 更新日志
 
+## 0.7.5
+- 修复（卫兵装备等级）：复制 Minecolonies 本体各等级卫兵塔的装备请求配置——护甲按建筑等级 1/2/3/4/5 分别请求等级 1-1/1-2/1-3/2-4/3-∞（5 级含 5 级下界合金），剑等级上限=建筑等级（5 级可请求 5 级武器）；候选/已有装备判定改用 `GuardGear.minArmorLevel/maxArmorLevel`（与本体 `checkForToolOrWeaponAsync` 一致）。
+
 ## 0.7.4
 - 修复（卫兵装备候选列表）：取消候选物品 12 个上限——多 mod 环境下注册表遍历顺序不定，截断会导致部分 mod 装备无法被请求；现收集该装备类型+等级范围内的全部物品（本体基于类型/tag 匹配、无此限制）。
 - 本地化：新增 `com.caravan.gui.guard_equipment`（商队卫兵装备 / Caravan Guard Equipment）。

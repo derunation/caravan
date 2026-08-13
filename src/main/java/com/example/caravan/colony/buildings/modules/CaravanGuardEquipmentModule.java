@@ -11,6 +11,7 @@ import com.minecolonies.api.colony.requestsystem.request.RequestState;
 import com.minecolonies.api.colony.requestsystem.requestable.StackList;
 import com.minecolonies.api.colony.requestsystem.token.IToken;
 import com.minecolonies.api.entity.ai.workers.util.GuardGear;
+import com.minecolonies.api.entity.ai.workers.util.GuardGearBuilder;
 import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
 import com.minecolonies.api.equipment.ModEquipmentTypes;
 import com.minecolonies.core.colony.buildings.modules.WorkerBuildingModule;
@@ -67,7 +68,7 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
         final AbstractEntityCitizen entity = guard.getEntity().orElse(null);
         final Map<String, IToken<?>> requests =
             openRequests.computeIfAbsent(guard.getId(), k -> new HashMap<>());
-        for (final GuardGear gear : guardGear())
+        for (final GuardGear gear : guardGearForLevel(level))
         {
             // 建筑等级范围过滤（与卫兵塔一致：低等级建筑不请求高级装备）。
             if (level < gear.getMinBuildingLevelRequired()
@@ -81,7 +82,7 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
             {
                 continue;
             }
-            if (bestEquipmentLevel(entity, gear) >= gear.getMinLevelRequired())
+            if (bestEquipmentLevel(entity, gear) >= gear.getMinArmorLevel())
             {
                 // 已有足够等级的装备 → 取消残留请求。
                 cancelOpen(requests, slotKey);
@@ -99,8 +100,8 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
                     continue;
                 }
                 final int itemLevel = gear.getItemNeeded().getMiningLevel(stack);
-                if (itemLevel >= gear.getMinLevelRequired()
-                    && itemLevel <= gear.getMaxLevelRequired())
+                if (itemLevel >= gear.getMinArmorLevel()
+                    && itemLevel <= gear.getMaxArmorLevel())
                 {
                     candidates.add(stack);
                 }
@@ -114,22 +115,35 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
         }
     }
 
-    /** 需求（装备请求）：与骑士等价的装备清单——剑 + 护甲四件套（等级 1-4，建筑 1-5 级）。 */
-    private static List<GuardGear> guardGear()
+    /**
+     * 需求（装备请求）：完全复制 Minecolonies 本体各等级卫兵塔的装备配置
+     * （AbstractEntityAIFight 构造函数逐级调用 GuardGearBuilder.buildGearForLevel）——
+     * 护甲四件套按建筑等级：1 级=1-1、2 级=1-2、3 级=1-3、4 级=2-4、5 级=3-∞（含 5 级下界合金）；
+     * 剑（本体在 toolsNeeded 中）等级上限=建筑等级（5 级塔可请求 5 级武器）。
+     */
+    private static List<GuardGear> guardGearForLevel(final int level)
     {
         final List<GuardGear> gear = new ArrayList<>();
-        final Tuple<Integer, Integer> armorLevels = new Tuple<>(1, 4);
-        final Tuple<Integer, Integer> buildingLevels = new Tuple<>(1, 5);
+        // 等级要求 0-99（本体 LEATHER_BUILDING_LEVEL_RANGE——已有装备只要有任意等级即满足）。
+        final Tuple<Integer, Integer> anyLevel = new Tuple<>(0, 99);
+        switch (level)
+        {
+            case 1 -> gear.addAll(GuardGearBuilder.buildGearForLevel(
+                1, 1, anyLevel, new Tuple<>(1, 2)));
+            case 2 -> gear.addAll(GuardGearBuilder.buildGearForLevel(
+                1, 2, anyLevel, new Tuple<>(2, 3)));
+            case 3 -> gear.addAll(GuardGearBuilder.buildGearForLevel(
+                1, 3, anyLevel, new Tuple<>(3, 4)));
+            case 4 -> gear.addAll(GuardGearBuilder.buildGearForLevel(
+                2, 4, anyLevel, new Tuple<>(4, 5)));
+            default -> gear.addAll(GuardGearBuilder.buildGearForLevel(
+                3, Integer.MAX_VALUE, anyLevel, new Tuple<>(4, 5)));
+        }
+        // 剑：本体在 toolsNeeded（EntityAIKnight），等级上限 = 建筑最大装备等级（5 级 → 5 级武器）。
+        final int maxWeaponLevel = Math.min(5, level);
+        final int minWeaponLevel = level >= 5 ? 3 : (level >= 3 ? 2 : 1);
         gear.add(new GuardGear(ModEquipmentTypes.sword.get(), EquipmentSlot.MAINHAND,
-            1, 4, armorLevels, buildingLevels));
-        gear.add(new GuardGear(ModEquipmentTypes.helmet.get(), EquipmentSlot.HEAD,
-            1, 4, armorLevels, buildingLevels));
-        gear.add(new GuardGear(ModEquipmentTypes.chestplate.get(), EquipmentSlot.CHEST,
-            1, 4, armorLevels, buildingLevels));
-        gear.add(new GuardGear(ModEquipmentTypes.leggings.get(), EquipmentSlot.LEGS,
-            1, 4, armorLevels, buildingLevels));
-        gear.add(new GuardGear(ModEquipmentTypes.boots.get(), EquipmentSlot.FEET,
-            1, 4, armorLevels, buildingLevels));
+            minWeaponLevel, maxWeaponLevel, anyLevel, new Tuple<>(1, 5)));
         return gear;
     }
 
