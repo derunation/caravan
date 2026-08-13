@@ -151,13 +151,12 @@ public abstract class AbstractEntityAIGuardMixin
         }
     }
 
-    /** 需求（bug 修复）：商队模式下不随机睡觉——否则跟随/驻守途中入睡会
+    /** 需求（bug 修复）：商队护卫不随机睡觉——否则跟随/驻守途中入睡会
      *  卡住 2~3 分钟（睡眠期间不索敌、不跟随），表现为“跟随中无法索敌”。 */
     @Inject(method = "shouldSleep", at = @At("HEAD"), cancellable = true, remap = false)
     private void caravan$shouldSleep(final CallbackInfoReturnable<Boolean> cir)
     {
-        final BuildingCaravanLeader hut = activeHut();
-        if (hut != null && (CaravanGuardHelper.isLeaderAway(hut) || CaravanGuardHelper.isCaravanTravelling(hut)))
+        if (activeHut() != null)
         {
             cir.setReturnValue(false);
         }

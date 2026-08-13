@@ -3063,9 +3063,12 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     continue; // 模拟旅行中（消失）不参与判定。
                 }
                 anyVisible = true;
-                // 战斗判定：威胁表目标（卫兵战斗时可能不设置 getTarget）。
-                if (guard instanceof com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity threat
-                    && threat.getThreatTable().getTargetMob() != null)
+                // 战斗判定：卫兵 AI 是否正处于 ATTACKING（原版战斗状态机）。
+                // 修复：此前用“威胁表非空”判定——豁免名单内的怪物（如玩家关闭索敌的
+                // 史莱姆）会被我们的扫描加入威胁表但卫兵不会攻击，导致领袖误报等待。
+                final com.minecolonies.api.entity.ai.ITickingStateAI guardAI = guard.getCitizenJobHandler().getWorkAI();
+                if (guardAI != null
+                    && guardAI.getState() == com.minecolonies.api.entity.ai.combat.CombatAIStates.ATTACKING)
                 {
                     anyCombat = true;
                 }
@@ -3074,10 +3077,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             {
                 guardsWereInCombat = true;
                 com.example.caravan.CaravanMod.LOGGER.info(
-                    "Caravan: 商队领袖等待——护卫卫兵战斗中（{} 名）",
-                    guards.stream().filter(g -> !g.isInvisible()
-                        && g instanceof com.minecolonies.api.entity.ai.combat.threat.IThreatTableEntity t
-                        && t.getThreatTable().getTargetMob() != null).count());
+                    "Caravan: 商队领袖等待——护卫卫兵战斗中（ATTACKING）");
                 return true;
             }
             if (guardsWereInCombat)

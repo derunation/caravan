@@ -164,8 +164,10 @@ public abstract class AbstractAISkeletonMixin
             final LivingEntity threatTarget = worker instanceof IThreatTableEntity threat
                 ? threat.getThreatTable().getTargetMob()
                 : null;
+            final boolean attackable = threatTarget != null
+                && com.minecolonies.core.entity.ai.workers.guard.AbstractEntityAIGuard.isAttackableTarget(worker, threatTarget);
             com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: 护卫卫兵 {}：{}（隐形={}，距领袖 {}，AI状态={}，武器={}，威胁={}）",
+                "Caravan: 护卫卫兵 {}：{}（隐形={}，距领袖 {}，AI状态={}，武器={}，威胁={}，原版可攻击={}）",
                 worker.getCitizenData() != null ? worker.getCitizenData().getName() : "?",
                 reason,
                 worker.isInvisible(),
@@ -174,7 +176,8 @@ public abstract class AbstractAISkeletonMixin
                     : -1,
                 aiState,
                 caravan$hasWeapon(),
-                threatTarget != null ? threatTarget.getType().getDescriptionId() : "无");
+                threatTarget != null ? threatTarget.getType().getDescriptionId() : "无",
+                attackable);
         }
         catch (final Exception ignored)
         {
@@ -304,22 +307,38 @@ public abstract class AbstractAISkeletonMixin
         return ItemStackUtils.doesItemServeAsWeapon(worker.getMainHandItem());
     }
 
-    /** 敌对判定：卫兵塔【敌对】列表 + MC 敌对生物接口。 */
+    /** 敌对判定：与 Minecolonies 原版 isAttackableTarget 对齐——
+     *  仅当实体在“全部怪物”列表中且【不在】卫兵塔【敌对】列表（豁免名单）中时
+     *  视为敌对；修复此前“在列表中=敌对”的相反逻辑（关闭史莱姆索敌后仍战斗）。 */
     private boolean caravan$isEnemy(final LivingEntity entity)
     {
-        final ICitizenData data = worker.getCitizenData();
-        final IBuilding tower = data != null ? data.getWorkBuilding() : null;
-        if (tower != null)
+        try
         {
+            final ICitizenData data = worker.getCitizenData();
+            final IBuilding tower = data != null ? data.getWorkBuilding() : null;
+            if (tower == null)
+            {
+                return entity instanceof Enemy;
+            }
             final var entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+            EntityListModule hostiles = null;
             for (final EntityListModule list : tower.getModulesByType(EntityListModule.class))
             {
-                if (list.isEntityInList(entityId))
+                if ("hostiles".equals(list.getId()))
                 {
-                    return true;
+                    hostiles = list;
+                    break;
                 }
             }
+            return com.minecolonies.api.colony.IColonyManager.getInstance()
+                .getCompatibilityManager()
+                .getAllMonsters()
+                .contains(entityId)
+                && (hostiles == null || !hostiles.isEntityInList(entityId));
         }
-        return entity instanceof Enemy;
+        catch (final Exception ignored)
+        {
+            return entity instanceof Enemy;
+        }
     }
 }

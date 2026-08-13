@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '1.0.23'
 }
 
-version = '0.8.7'
+version = '0.8.8'
 group = 'com.example'
 
 base {
