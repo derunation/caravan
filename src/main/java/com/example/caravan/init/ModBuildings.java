@@ -6,8 +6,10 @@ import com.example.caravan.colony.buildings.CaravanBuildingView;
 import com.example.caravan.colony.buildings.moduleviews.CaravanSettingsModuleView;
 import com.example.caravan.colony.buildings.moduleviews.CaravanLogModuleView;
 import com.example.caravan.colony.buildings.moduleviews.CaravanStockModuleView;
+import com.example.caravan.colony.buildings.moduleviews.CaravanGuardEquipmentModuleView;
 import com.example.caravan.colony.buildings.moduleviews.CaravanTradeListModuleView;
 import com.example.caravan.colony.buildings.modules.CaravanLogModule;
+import com.example.caravan.colony.buildings.modules.CaravanGuardEquipmentModule;
 import com.example.caravan.colony.buildings.modules.CaravanSettingsModule;
 import com.example.caravan.colony.buildings.modules.CaravanStockModule;
 import com.example.caravan.colony.buildings.modules.CaravanTradeModule;
@@ -60,6 +62,21 @@ public final class ModBuildings
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanMemberWork",
                 () -> new WorkerBuildingModule(CaravanMod.JOB_CARAVAN_MEMBER, Skill.Agility, Skill.Intelligence, false, building -> building.getBuildingLevel()),
                 () -> WorkerBuildingModuleView::new))
+            // 需求（商队卫兵）：卫兵工作模块——属性参照骑士（主力量、副耐力），
+            // 雇佣上限按小屋等级解锁：1-2 级 1 人、3-4 级 2 人、5 级 3 人。
+            .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanGuardWork",
+                () -> new WorkerBuildingModule(CaravanMod.JOB_CARAVAN_GUARD, Skill.Strength, Skill.Stamina, false,
+                    building -> {
+                        final int level = building.getBuildingLevel();
+                        return level >= 5 ? 3 : (level >= 3 ? 2 : 1);
+                    }),
+                () -> WorkerBuildingModuleView::new))
+            // 需求（商队卫兵）：装备请求模块（每殖民地刻检查武器/护甲，缺失创建请求送达小屋存储）。
+            .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanGuardEquipment",
+                () -> new CaravanGuardEquipmentModule(),
+                () -> CaravanGuardEquipmentModuleView::new))
+            // 需求（商队卫兵）：【敌对】选项卡（复用本体 EntityListModule，与卫兵塔一致）。
+            .addBuildingModuleProducer(BuildingModules.GUARD_ENTITY_LIST)
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanTrades",
                 () -> new CaravanTradeModule(),
                 () -> CaravanTradeListModuleView::new))

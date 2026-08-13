@@ -34,7 +34,10 @@
     <itemicon id="foodIcon0" size="16 16" pos="62 196"/>
     <itemicon id="foodIcon1" size="16 16" pos="78 196"/>
     <itemicon id="foodIcon2" size="16 16" pos="94 196"/>
-    <itemicon id="saturationIcon" size="16 16" pos="110 196"/>
+    <!-- 需求（饥饿）：饱食度图标使用玩家 HUD 鸡腿贴图（与 Minecolonies 公民信息页一致：
+         minecraft:hud/food_full 与 hud/food_empty），9x9 尺寸，Tooltip 显示饿肚子人数。 -->
+    <image id="saturationIcon" size="9 9" pos="113 199" onHoverId="saturationTooltip"/>
+    <text id="saturationTooltip" size="140 18" pos="40 215" visible="false" color="white" wrap="true"/>
     <itemicon id="torchIcon0" size="16 16" pos="126 196"/>
     <itemicon id="torchIcon1" size="16 16" pos="142 196"/>
     <itemicon id="torchIcon2" size="16 16" pos="158 196"/>

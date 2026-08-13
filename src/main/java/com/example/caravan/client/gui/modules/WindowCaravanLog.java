@@ -7,17 +7,16 @@ import com.example.caravan.colony.jobs.JobCaravanLeader;
 import com.example.caravan.network.CaravanRefreshBuildingMessage;
 import com.example.caravan.network.CaravanCloseGuiMessage;
 import com.ldtteam.blockui.Pane;
+import com.ldtteam.blockui.controls.Image;
 import com.ldtteam.blockui.controls.Text;
 import com.ldtteam.blockui.controls.ItemIcon;
 import com.ldtteam.blockui.views.ScrollingList;
 import com.minecolonies.api.colony.buildings.views.IBuildingView;
 import com.minecolonies.core.client.gui.AbstractModuleWindow;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -118,20 +117,24 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
         updateConsumableIcons(tents, "tentIcon", TENT_ICONS);
         updateConsumableIcons(moduleView.getFoodStacks(), "foodIcon", FOOD_ICONS);
         updateConsumableIcons(moduleView.getTorchStacks(), "torchIcon", TORCH_ICONS);
-        // 需求（饥饿）：食物图标右侧显示饱食度图标——无人饥饿 = 满饱食度图标（熟鸡腿），
-        // 有人饥饿 = 空饱食度图标（生鸡腿）；Tooltip 显示饿肚子人数。
-        final ItemIcon saturationIcon = findPaneOfTypeByID("saturationIcon", ItemIcon.class);
+        // 需求（饥饿）：食物图标右侧显示玩家饱食度图标（与 Minecolonies 公民信息页一致，
+        // 使用 minecraft:hud/food_full / hud/food_empty 鸡腿贴图）——
+        // 无人饥饿 = 满鸡腿，有人饥饿 = 空鸡腿；Tooltip 显示饿肚子人数。
+        final Image saturationIcon = findPaneOfTypeByID("saturationIcon", Image.class);
         if (saturationIcon != null)
         {
             saturationIcon.setVisible(true);
-            final ItemStack saturationStack = new ItemStack(
-                moduleView.getHungryCount() > 0 ? Items.CHICKEN : Items.COOKED_CHICKEN);
-            saturationStack.set(DataComponents.CUSTOM_NAME, Component.translatable(
-                moduleView.getHungryCount() > 0
-                    ? "com.caravan.gui.log.saturation.hungry"
-                    : "com.caravan.gui.log.saturation.none",
-                moduleView.getHungryCount()));
-            saturationIcon.setItem(saturationStack);
+            saturationIcon.setImage(ResourceLocation.withDefaultNamespace(
+                moduleView.getHungryCount() > 0 ? "hud/food_empty" : "hud/food_full"), false);
+            final Text saturationTooltip = findPaneOfTypeByID("saturationTooltip", Text.class);
+            if (saturationTooltip != null)
+            {
+                saturationTooltip.setText(Component.translatable(
+                    moduleView.getHungryCount() > 0
+                        ? "com.caravan.gui.log.saturation.hungry"
+                        : "com.caravan.gui.log.saturation.none",
+                    moduleView.getHungryCount()));
+            }
         }
         final Text tentInfo = findPaneOfTypeByID("tentInfo", Text.class);
         final Text consumablesTitle = findPaneOfTypeByID("consumablesTitle", Text.class);
