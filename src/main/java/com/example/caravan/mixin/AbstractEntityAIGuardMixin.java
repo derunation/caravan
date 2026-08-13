@@ -5,7 +5,7 @@ import com.example.caravan.colony.buildings.CaravanGuardHelper;
 import com.minecolonies.api.colony.buildings.IGuardBuilding;
 import com.minecolonies.api.entity.ai.statemachine.states.IAIState;
 import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
-import com.minecolonies.core.colony.buildings.AbstractBuildingGuards;
+import com.minecolonies.core.colony.buildings.AbstractBuilding;
 import com.minecolonies.core.entity.ai.workers.guard.AbstractEntityAIGuard;
 import net.minecraft.core.BlockPos;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,7 +34,7 @@ public abstract class AbstractEntityAIGuardMixin
     protected AbstractEntityCitizen worker;
 
     @Shadow
-    protected AbstractBuildingGuards building;
+    protected AbstractBuilding building;
 
     @Shadow
     private IAIState guard()

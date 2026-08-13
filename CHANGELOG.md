@@ -1,5 +1,8 @@
 # 商队（Caravan）Mod 更新日志
 
+## 0.8.1
+- 修复崩溃（启动加载失败）：`AbstractEntityAIGuardMixin` 的 `@Shadow building` 字段类型错误（父类声明为 `AbstractBuilding`），导致 mixin `attachFields` 失败、Mod 进入 broken 状态。
+
 ## 0.8.0
 - 重构（商队卫兵 → mixin 方案）：回退 0.7.2-0.7.9 的商队卫兵职业实现，改为复用 Minecolonies 卫兵塔卫兵：
   - 卫兵塔【工作模式】新增【商队护卫】选项（mixin `GuardTaskSetting`）；
