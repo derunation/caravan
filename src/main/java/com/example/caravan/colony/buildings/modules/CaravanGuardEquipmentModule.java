@@ -8,28 +8,32 @@ import com.minecolonies.api.colony.buildings.modules.ITickingModule;
 import com.minecolonies.api.colony.requestsystem.manager.IRequestManager;
 import com.minecolonies.api.colony.requestsystem.request.IRequest;
 import com.minecolonies.api.colony.requestsystem.request.RequestState;
-import com.minecolonies.api.colony.requestsystem.requestable.Stack;
+import com.minecolonies.api.colony.requestsystem.requestable.StackList;
 import com.minecolonies.api.colony.requestsystem.token.IToken;
+import com.minecolonies.api.entity.ai.workers.util.GuardGear;
 import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
+import com.minecolonies.api.equipment.ModEquipmentTypes;
 import com.minecolonies.core.colony.buildings.modules.WorkerBuildingModule;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.util.Tuple;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * 需求（商队卫兵）：每殖民地刻检查卫兵装备——参照 Minecolonies 本体卫兵的机制
- * 请求武器与护甲（无武器时不工作的判定由卫兵 AI 后续版本实现）。
- * <p>请求挂在小屋建筑上（送达小屋存储，与帐篷/火把请求一致），
- * 避免市民请求导致卫兵进入 NEEDS_ITEM 状态卡住；装备等级随小屋等级提升：
- * 1-2 级铁质、3-4 级钻石、5 级下界合金。</p>
+ * 需求（商队卫兵）：每殖民地刻检查卫兵装备——沿用 Minecolonies 本体卫兵塔的模式：
+ * 按 {@link GuardGear}（装备槽位 + 装备类型 + 等级范围 + 建筑等级范围）检查，
+ * 缺失时以“候选物品列表”（该装备类型下、等级范围内的物品）创建【公民请求】
+ * （关联卫兵市民，快递员直接送达市民背包；无武器不工作的判定由卫兵 AI 后续版本实现）。
  */
 public class CaravanGuardEquipmentModule extends AbstractBuildingModule implements ITickingModule
 {
-    /** 需求（装备请求防重）：市民 id →（槽位名 → 打开的请求令牌）。 */
+    /** 需求（装备请求防重）：市民 id →（装备槽名 → 打开的请求令牌）。 */
     private final Map<Integer, Map<String, IToken<?>>> openRequests = new HashMap<>();
 
     @Override
@@ -37,11 +41,6 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
     {
         try
         {
-            final IRequestManager manager = colony.getRequestManager();
-            if (manager == null)
-            {
-                return;
-            }
             final int level = getBuilding().getBuildingLevel();
             for (final WorkerBuildingModule module : getBuilding()
                 .getModulesByType(WorkerBuildingModule.class))
@@ -52,7 +51,7 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
                 }
                 for (final ICitizenData guard : module.getAssignedCitizen())
                 {
-                    checkGuardEquipment(manager, guard, level);
+                    checkGuardEquipment(guard, level);
                 }
             }
         }
@@ -62,84 +61,130 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
         }
     }
 
-    /** 检查单个卫兵：武器 + 头盔/胸甲/护腿/靴子，缺失则创建弹性请求（送达小屋存储）。 */
-    private void checkGuardEquipment(final IRequestManager manager, final ICitizenData guard, final int level)
+    /** 按本体的 GuardGear 定义检查单个卫兵的每一件装备。 */
+    private void checkGuardEquipment(final ICitizenData guard, final int level)
     {
-        final int id = guard.getId();
-        final var requests = openRequests.computeIfAbsent(id, k -> new HashMap<>());
-        // 实体未加载时无法核对背包，跳过本轮（加载后自然检查）。
         final AbstractEntityCitizen entity = guard.getEntity().orElse(null);
-        if (entity == null)
+        final Map<String, IToken<?>> requests =
+            openRequests.computeIfAbsent(guard.getId(), k -> new HashMap<>());
+        for (final GuardGear gear : guardGear())
         {
-            return;
+            // 建筑等级范围过滤（与卫兵塔一致：低等级建筑不请求高级装备）。
+            if (level < gear.getMinBuildingLevelRequired()
+                || level > gear.getMaxBuildingLevelRequired())
+            {
+                continue;
+            }
+            final String slotKey = gear.getType().name();
+            // 实体未加载时跳过检查（加载后自然补齐）。
+            if (entity == null)
+            {
+                continue;
+            }
+            if (bestEquipmentLevel(entity, gear) >= gear.getMinLevelRequired())
+            {
+                // 已有足够等级的装备 → 取消残留请求。
+                cancelOpen(requests, slotKey);
+                continue;
+            }
+            // 构造候选物品：该装备类型下、等级在 [min, max] 范围内的物品（上限 12 个）。
+            final List<ItemStack> candidates = new ArrayList<>();
+            for (final Item item : BuiltInRegistries.ITEM)
+            {
+                final ItemStack stack = new ItemStack(item);
+                if (!gear.getItemNeeded().checkIsEquipment(stack))
+                {
+                    continue;
+                }
+                final int itemLevel = gear.getItemNeeded().getMiningLevel(stack);
+                if (itemLevel >= gear.getMinLevelRequired()
+                    && itemLevel <= gear.getMaxLevelRequired())
+                {
+                    candidates.add(stack);
+                    if (candidates.size() >= 12)
+                    {
+                        break;
+                    }
+                }
+            }
+            if (candidates.isEmpty())
+            {
+                continue;
+            }
+            requestIfMissing(guard, requests, slotKey,
+                new StackList(candidates, "com.caravan.gui.guard_equipment", 1, 1, 0));
         }
-        // 武器（主手）。
-        if (!hasItem(entity, equipmentForLevel(level).weapon()))
+    }
+
+    /** 需求（装备请求）：与骑士等价的装备清单——剑 + 护甲四件套（等级 1-4，建筑 1-5 级）。 */
+    private static List<GuardGear> guardGear()
+    {
+        final List<GuardGear> gear = new ArrayList<>();
+        final Tuple<Integer, Integer> armorLevels = new Tuple<>(1, 4);
+        final Tuple<Integer, Integer> buildingLevels = new Tuple<>(1, 5);
+        gear.add(new GuardGear(ModEquipmentTypes.sword.get(), EquipmentSlot.MAINHAND,
+            1, 4, armorLevels, buildingLevels));
+        gear.add(new GuardGear(ModEquipmentTypes.helmet.get(), EquipmentSlot.HEAD,
+            1, 4, armorLevels, buildingLevels));
+        gear.add(new GuardGear(ModEquipmentTypes.chestplate.get(), EquipmentSlot.CHEST,
+            1, 4, armorLevels, buildingLevels));
+        gear.add(new GuardGear(ModEquipmentTypes.leggings.get(), EquipmentSlot.LEGS,
+            1, 4, armorLevels, buildingLevels));
+        gear.add(new GuardGear(ModEquipmentTypes.boots.get(), EquipmentSlot.FEET,
+            1, 4, armorLevels, buildingLevels));
+        return gear;
+    }
+
+    /** 卫兵现有装备中该 GuardGear 类型的最高等级（装备槽 + 背包；无则 -1）。 */
+    private static int bestEquipmentLevel(final AbstractEntityCitizen entity, final GuardGear gear)
+    {
+        int best = -1;
+        for (int slot = 0; slot < entity.getInventoryCitizen().getSlots(); slot++)
         {
-            requestIfMissing(manager, requests, id, "weapon", new ItemStack(equipmentForLevel(level).weapon()));
+            final ItemStack stack = entity.getInventoryCitizen().getStackInSlot(slot);
+            if (gear.test(stack))
+            {
+                best = Math.max(best, gear.getItemNeeded().getMiningLevel(stack));
+            }
+        }
+        if (gear.getType().isArmor())
+        {
+            final ItemStack worn = entity.getInventoryCitizen().getArmorInSlot(gear.getType());
+            if (gear.test(worn))
+            {
+                best = Math.max(best, gear.getItemNeeded().getMiningLevel(worn));
+            }
         }
         else
         {
-            cancelOpen(requests, "weapon");
-        }
-        // 护甲四件套。
-        final Item[] armor = equipmentForLevel(level).armor();
-        final String[] slots = {"helmet", "chestplate", "leggings", "boots"};
-        final EquipmentSlot[] equipSlots = {
-            EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
-        for (int i = 0; i < slots.length; i++)
-        {
-            final Item armorItem = armor[i];
-            if (armorItem == null || hasArmorAt(entity, equipSlots[i]))
+            final ItemStack held = entity.getItemBySlot(gear.getType());
+            if (gear.test(held))
             {
-                cancelOpen(requests, slots[i]);
-                continue;
-            }
-            requestIfMissing(manager, requests, id, slots[i], new ItemStack(armorItem));
-        }
-    }
-
-    /** 背包中是否已有该物品（任意数量）。 */
-    private static boolean hasItem(final AbstractEntityCitizen entity, final Item item)
-    {
-        for (int slot = 0; slot < entity.getInventoryCitizen().getSlots(); slot++)
-        {
-            if (entity.getInventoryCitizen().getStackInSlot(slot).getItem() == item)
-            {
-                return true;
+                best = Math.max(best, gear.getItemNeeded().getMiningLevel(held));
             }
         }
-        return false;
+        return best;
     }
 
-    /** 对应护甲槽位是否已穿戴护甲。 */
-    private static boolean hasArmorAt(final AbstractEntityCitizen entity, final EquipmentSlot slot)
-    {
-        return !entity.getItemBySlot(slot).isEmpty();
-    }
-
-    /** 创建弹性请求（1..1 件，送达小屋存储）；已有打开请求则不重复创建。 */
-    private void requestIfMissing(final IRequestManager manager,
+    /** 创建公民请求（关联卫兵，快递员送达市民背包）；已有打开请求则不重复创建。 */
+    private void requestIfMissing(final ICitizenData guard,
         final Map<String, IToken<?>> requests,
-        final int guardId,
-        final String slot,
-        final ItemStack stack)
+        final String slotKey,
+        final StackList requestable)
     {
-        final IToken<?> existing = requests.get(slot);
-        if (existing != null && isOpenRequest(manager, existing))
+        final IToken<?> existing = requests.get(slotKey);
+        if (existing != null && isOpenRequest(getBuilding().getColony().getRequestManager(), existing))
         {
             return;
         }
-        requests.remove(slot);
+        requests.remove(slotKey);
         try
         {
-            final IToken<?> token = manager.createAndAssignRequest(
-                getBuilding().getRequester(),
-                new Stack(stack, 1, 1));
-            requests.put(slot, token);
+            final IToken<?> token = getBuilding().createRequest(guard, requestable, false);
+            requests.put(slotKey, token);
             CaravanMod.LOGGER.info(
                 "Caravan: 创建卫兵装备请求 {}（市民 {}，槽位 {}）",
-                stack.getHoverName().getString(), guardId, slot);
+                requestable.getResult().getHoverName().getString(), guard.getId(), slotKey);
         }
         catch (final Exception ignored)
         {
@@ -148,9 +193,9 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
     }
 
     /** 装备已满足时取消残留请求。 */
-    private void cancelOpen(final Map<String, IToken<?>> requests, final String slot)
+    private void cancelOpen(final Map<String, IToken<?>> requests, final String slotKey)
     {
-        final IToken<?> token = requests.remove(slot);
+        final IToken<?> token = requests.remove(slotKey);
         if (token == null)
         {
             return;
@@ -172,6 +217,10 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
     /** 该请求令牌对应的请求是否仍在进行中（未结束）。 */
     private static boolean isOpenRequest(final IRequestManager manager, final IToken<?> token)
     {
+        if (manager == null)
+        {
+            return false;
+        }
         try
         {
             final IRequest<?> request = manager.getRequestForToken(token);
@@ -189,30 +238,5 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
         {
             return false;
         }
-    }
-
-    /** 按建筑等级返回武器与护甲四件套（头盔/胸甲/护腿/靴子）。 */
-    private static EquipmentSet equipmentForLevel(final int level)
-    {
-        if (level >= 5)
-        {
-            return new EquipmentSet(Items.NETHERITE_SWORD, new Item[]{
-                Items.NETHERITE_HELMET, Items.NETHERITE_CHESTPLATE,
-                Items.NETHERITE_LEGGINGS, Items.NETHERITE_BOOTS});
-        }
-        if (level >= 3)
-        {
-            return new EquipmentSet(Items.DIAMOND_SWORD, new Item[]{
-                Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE,
-                Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS});
-        }
-        return new EquipmentSet(Items.IRON_SWORD, new Item[]{
-            Items.IRON_HELMET, Items.IRON_CHESTPLATE,
-            Items.IRON_LEGGINGS, Items.IRON_BOOTS});
-    }
-
-    /** 一套装备：武器 + 护甲四件。 */
-    private record EquipmentSet(Item weapon, Item[] armor)
-    {
     }
 }

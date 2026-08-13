@@ -10,6 +10,7 @@ import com.ldtteam.blockui.Pane;
 import com.ldtteam.blockui.controls.Image;
 import com.ldtteam.blockui.controls.Text;
 import com.ldtteam.blockui.controls.ItemIcon;
+import com.ldtteam.blockui.controls.Tooltip;
 import com.ldtteam.blockui.views.ScrollingList;
 import com.minecolonies.api.colony.buildings.views.IBuildingView;
 import com.minecolonies.core.client.gui.AbstractModuleWindow;
@@ -126,15 +127,15 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
             saturationIcon.setVisible(true);
             saturationIcon.setImage(ResourceLocation.withDefaultNamespace(
                 moduleView.getHungryCount() > 0 ? "hud/food_empty" : "hud/food_full"), false);
-            final Text saturationTooltip = findPaneOfTypeByID("saturationTooltip", Text.class);
-            if (saturationTooltip != null)
-            {
-                saturationTooltip.setText(Component.translatable(
-                    moduleView.getHungryCount() > 0
-                        ? "com.caravan.gui.log.saturation.hungry"
-                        : "com.caravan.gui.log.saturation.none",
-                    moduleView.getHungryCount()));
-            }
+            // 需求（GUI）：使用 BlockUI Tooltip 控件（drawSelfLast 绘制在最上层，
+            // 不会被物品图标角标遮挡），替代 onHoverId 隐藏文本方案。
+            final Tooltip saturationTooltip = new Tooltip();
+            saturationTooltip.setText(Component.translatable(
+                moduleView.getHungryCount() > 0
+                    ? "com.caravan.gui.log.saturation.hungry"
+                    : "com.caravan.gui.log.saturation.none",
+                moduleView.getHungryCount()));
+            saturationIcon.setHoverPane(saturationTooltip);
         }
         final Text tentInfo = findPaneOfTypeByID("tentInfo", Text.class);
         final Text consumablesTitle = findPaneOfTypeByID("consumablesTitle", Text.class);
