@@ -1,5 +1,11 @@
 # 商队（Caravan）Mod 更新日志
 
+## 0.8.0
+- 重构（商队卫兵 → mixin 方案）：回退 0.7.2-0.7.9 的商队卫兵职业实现，改为复用 Minecolonies 卫兵塔卫兵：
+  - 卫兵塔【工作模式】新增【商队护卫】选项（mixin `GuardTaskSetting`）；
+  - 商队小屋新增【护卫】页（`CaravanGuardModule` + GUI），列出商队护卫模式的卫兵，选中后开始护卫；
+  - 卫兵 AI（mixin `AbstractEntityAIGuard`）：商队领袖消失时跟随到领袖位置，商队未出发时驻守商队小屋，索敌战斗沿用卫兵自身框架。
+
 ## 0.7.9
 - 修复（卫兵装备领取）：确认本体机制——公民请求（`CitizenData.createRequest`）内部即“工作建筑请求”，快递员送达小屋存储；本体的“领取”由卫兵 AI 从小屋存储把装备转移到背包（`checkForToolOrWeapon`/`equipInventoryArmor`）。卫兵 AI 现增加该领取逻辑（小屋存储 → 背包 → 穿戴）。
 - 装备栏顺序说明：反编译确认本体 `ContainerCitizenInventory` 按 MC `EquipmentSlot.values()` 顺序渲染（FEET 在上、HEAD 在下），`getIndex()` 映射 FEET=0…HEAD=3，本体市民与商队卫兵使用同一存储/映射，顺序一致。

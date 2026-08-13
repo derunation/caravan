@@ -13,6 +13,7 @@ import com.example.caravan.item.CaravanMarkerItem;
 import com.example.caravan.item.ItemCaravanTent;
 import com.example.caravan.tileentity.TileEntityCaravanLeader;
 import com.example.caravan.network.CaravanGetToolMessage;
+import com.example.caravan.network.CaravanGuardAssignMessage;
 import com.example.caravan.network.CaravanCloseGuiMessage;
 import com.example.caravan.network.CaravanDeleteVillagerMessage;
 import com.example.caravan.network.CaravanRenameVillagerMessage;
@@ -137,9 +138,6 @@ public final class CaravanMod
     /** 商队成员职业条目（RegisterEvent 中填充）。 */
     public static JobEntry JOB_CARAVAN_MEMBER;
 
-    /** 需求（商队卫兵）：商队卫兵职业条目（雇佣上限按小屋等级 1/3/5 解锁 1/2/3 人）。 */
-    public static JobEntry JOB_CARAVAN_GUARD;
-
     private CaravanMod()
     {
     }
@@ -247,7 +245,6 @@ public final class CaravanMod
                 soundMap.get("deliveryman");
             soundMap.putIfAbsent("caravan_leader", deliverymanSounds);
             soundMap.putIfAbsent("caravan_member", deliverymanSounds);
-            soundMap.putIfAbsent("caravan_guard", deliverymanSounds);
         }
         catch (final Exception ex)
         {
@@ -259,6 +256,7 @@ public final class CaravanMod
     {
         final PayloadRegistrar registrar = event.registrar("1");
         CaravanGetToolMessage.TYPE.register(registrar);
+        CaravanGuardAssignMessage.TYPE.register(registrar);
         CaravanDeleteVillagerMessage.TYPE.register(registrar);
         CaravanRenameVillagerMessage.TYPE.register(registrar);
         CaravanTradeModeMessage.TYPE.register(registrar);
