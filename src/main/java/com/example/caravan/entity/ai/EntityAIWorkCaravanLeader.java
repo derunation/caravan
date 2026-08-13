@@ -1780,6 +1780,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         // 不再仅限于 AWAY 模拟阶段）。
         if (guardsBlockMovement())
         {
+            waitForGuardsIdle();
             return CaravanState.DEPART;
         }
         if (!job.hasPendingTripTrades())
@@ -2856,6 +2857,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         // 领袖 6 格范围内才继续移动（模拟旅行中的隐形卫兵不参与判定）。
         if (guardsBlockMovement())
         {
+            // 需求（bug 修复）：AWAY 阶段取消旧寻路目标，防止隐形实体沿旧路径移动。
+            worker.getNavigation().stop();
             return CaravanState.AWAY;
         }
         final JobCaravanLeader.AwayPhase before = job.getAwayPhase();
@@ -3131,6 +3134,18 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
+    /** 需求（商队护卫·bug 修复）：等待卫兵战斗时原地活动——
+     *  取消当前寻路目标，改为附近 3 格内的随机点，避免领袖继续沿旧目标移动。 */
+    private void waitForGuardsIdle()
+    {
+        worker.getNavigation().stop();
+        final BlockPos waitTarget = worker.blockPosition().offset(
+            world.random.nextInt(7) - 3,
+            0,
+            world.random.nextInt(7) - 3);
+        walkToUnSafePos(waitTarget);
+    }
+
     /** 需求（经验）：商队完成交易后结算经验奖励（领袖 + 健康成员）。 */
     private void grantTradeExperience(final int trades)
     {
@@ -3218,6 +3233,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         // 需求（商队护卫）：回归步行阶段同样等待护卫卫兵结束战斗并归队。
         if (guardsBlockMovement())
         {
+            waitForGuardsIdle();
             return CaravanState.RETURN;
         }
         if (!walkToBuilding())
