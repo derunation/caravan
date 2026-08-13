@@ -1,12 +1,11 @@
 package com.example.caravan.colony.buildings.modules;
 
 import com.example.caravan.colony.buildings.CaravanGuardHelper;
+import com.minecolonies.api.colony.ICitizenData;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.buildings.IBuilding;
-import com.minecolonies.api.colony.buildings.IGuardBuilding;
 import com.minecolonies.api.colony.buildings.modules.AbstractBuildingModule;
 import com.minecolonies.api.colony.buildings.modules.IPersistentModule;
-import com.minecolonies.core.colony.buildings.AbstractBuildingGuards;
 import com.minecolonies.core.colony.buildings.modules.GuardBuildingModule;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -74,7 +73,7 @@ public class CaravanGuardModule extends AbstractBuildingModule implements IPersi
         compound.put(TAG_ASSIGNED, list);
     }
 
-    /** 同步：殖民地所有【商队护卫】模式卫兵塔（位置/名字/卫兵数/是否已指派）。 */
+    /** 同步：殖民地所有【商队护卫】模式卫兵（名字/所属塔/是否已指派）。 */
     @Override
     public void serializeToView(final RegistryFriendlyByteBuf buffer)
     {
@@ -84,9 +83,12 @@ public class CaravanGuardModule extends AbstractBuildingModule implements IPersi
         {
             for (final IBuilding building : colony.getServerBuildingManager().getBuildings().values())
             {
-                if (isCaravanTower(building))
+                if (CaravanGuardHelper.isCaravanTower(building))
                 {
-                    count++;
+                    for (final GuardBuildingModule module : building.getModulesByType(GuardBuildingModule.class))
+                    {
+                        count += module.getAssignedCitizen().size();
+                    }
                 }
             }
         }
@@ -95,29 +97,23 @@ public class CaravanGuardModule extends AbstractBuildingModule implements IPersi
         {
             for (final IBuilding building : colony.getServerBuildingManager().getBuildings().values())
             {
-                if (!isCaravanTower(building))
+                if (!CaravanGuardHelper.isCaravanTower(building))
                 {
                     continue;
                 }
-                buffer.writeVarInt(building.getPosition().getX());
-                buffer.writeVarInt(building.getPosition().getY());
-                buffer.writeVarInt(building.getPosition().getZ());
-                buffer.writeUtf(building.getBuildingDisplayName());
-                int guards = 0;
                 for (final GuardBuildingModule module : building.getModulesByType(GuardBuildingModule.class))
                 {
-                    guards += module.getAssignedCitizen().size();
+                    for (final ICitizenData guard : module.getAssignedCitizen())
+                    {
+                        buffer.writeVarInt(guard.getId());
+                        buffer.writeUtf(guard.getName());
+                        buffer.writeVarInt(building.getPosition().getX());
+                        buffer.writeVarInt(building.getPosition().getY());
+                        buffer.writeVarInt(building.getPosition().getZ());
+                        buffer.writeBoolean(isTowerAssigned(building.getPosition()));
+                    }
                 }
-                buffer.writeVarInt(guards);
-                buffer.writeBoolean(isTowerAssigned(building.getPosition()));
             }
         }
-    }
-
-    /** 该建筑是否为“商队护卫”工作模式的卫兵塔。 */
-    private static boolean isCaravanTower(final IBuilding building)
-    {
-        return building instanceof AbstractBuildingGuards
-            && CaravanGuardHelper.CARAVAN_TASK_KEY.equals(((IGuardBuilding) building).getTask());
     }
 }

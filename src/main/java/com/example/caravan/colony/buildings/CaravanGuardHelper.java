@@ -4,6 +4,9 @@ import com.example.caravan.colony.jobs.JobCaravanLeader;
 import com.minecolonies.api.colony.ICitizenData;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.buildings.IBuilding;
+import com.minecolonies.api.colony.buildings.IGuardBuilding;
+import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
+import com.minecolonies.core.colony.buildings.AbstractBuildingGuards;
 import com.minecolonies.core.colony.buildings.modules.WorkerBuildingModule;
 import net.minecraft.core.BlockPos;
 
@@ -52,6 +55,50 @@ public final class CaravanGuardHelper
         return leaderJob.getCitizen().getEntity()
             .map(entity -> entity.blockPosition())
             .orElse(leaderJob.getCitizen().getHomePosition());
+    }
+
+    /** 该建筑是否为“商队护卫”工作模式的卫兵塔。 */
+    public static boolean isCaravanTower(final IBuilding building)
+    {
+        return building instanceof AbstractBuildingGuards
+            && CARAVAN_TASK_KEY.equals(((IGuardBuilding) building).getTask());
+    }
+
+    /** 该卫兵塔是否已被商队小屋【护卫】页选中（塔级指派）。 */
+    public static boolean isTowerAssigned(final IBuilding tower, final BuildingCaravanLeader hut)
+    {
+        if (hut == null || tower == null)
+        {
+            return false;
+        }
+        final com.example.caravan.colony.buildings.modules.CaravanGuardModule module =
+            hut.getFirstModuleOccurance(com.example.caravan.colony.buildings.modules.CaravanGuardModule.class);
+        return module != null && module.isTowerAssigned(tower.getPosition());
+    }
+
+    /** 该卫兵（市民）是否处于“商队护卫”模式且其卫兵塔已被选中（否则返回 null）。 */
+    public static BuildingCaravanLeader caravanHutForGuard(final AbstractEntityCitizen worker)
+    {
+        try
+        {
+            final ICitizenData data = worker != null ? worker.getCitizenData() : null;
+            final IBuilding tower = data != null ? data.getWorkBuilding() : null;
+            if (!isCaravanTower(tower))
+            {
+                return null;
+            }
+            final IColony colony = data.getColony();
+            final BuildingCaravanLeader hut = findCaravanHut(colony);
+            if (hut == null || !isTowerAssigned(tower, hut))
+            {
+                return null;
+            }
+            return hut;
+        }
+        catch (final Exception ignored)
+        {
+            return null;
+        }
     }
 
     /** 从商队小屋工作模块中查找商队领袖的 job。 */

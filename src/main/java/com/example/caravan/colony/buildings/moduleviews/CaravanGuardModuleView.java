@@ -14,31 +14,31 @@ import java.util.List;
 /** 需求（商队护卫）：【护卫】页客户端视图——商队护卫模式卫兵塔列表。 */
 public class CaravanGuardModuleView extends AbstractBuildingModuleView
 {
-    /** 一条护卫卫兵塔信息。 */
-    public record GuardTowerEntry(BlockPos towerPos, String name, int guardCount, boolean assigned)
+    /** 一条护卫卫兵信息（名字/所属卫兵塔/塔是否已指派）。 */
+    public record GuardEntry(int citizenId, String name, BlockPos towerPos, boolean assigned)
     {
     }
 
-    private final List<GuardTowerEntry> towers = new ArrayList<>();
+    private final List<GuardEntry> guards = new ArrayList<>();
 
     @Override
     public void deserialize(final RegistryFriendlyByteBuf buffer)
     {
-        towers.clear();
+        guards.clear();
         final int count = buffer.readVarInt();
         for (int i = 0; i < count; i++)
         {
-            towers.add(new GuardTowerEntry(
-                new BlockPos(buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt()),
-                buffer.readUtf(),
+            guards.add(new GuardEntry(
                 buffer.readVarInt(),
+                buffer.readUtf(),
+                new BlockPos(buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt()),
                 buffer.readBoolean()));
         }
     }
 
-    public List<GuardTowerEntry> getTowers()
+    public List<GuardEntry> getGuards()
     {
-        return towers;
+        return guards;
     }
 
     @Override

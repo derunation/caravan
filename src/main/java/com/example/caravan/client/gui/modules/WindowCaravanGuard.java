@@ -2,7 +2,7 @@ package com.example.caravan.client.gui.modules;
 
 import com.example.caravan.CaravanMod;
 import com.example.caravan.colony.buildings.moduleviews.CaravanGuardModuleView;
-import com.example.caravan.colony.buildings.moduleviews.CaravanGuardModuleView.GuardTowerEntry;
+import com.example.caravan.colony.buildings.moduleviews.CaravanGuardModuleView.GuardEntry;
 import com.example.caravan.network.CaravanGuardAssignMessage;
 import com.ldtteam.blockui.Pane;
 import com.ldtteam.blockui.controls.Button;
@@ -15,7 +15,11 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 
-/** 需求（商队护卫）：商队小屋【护卫】页——列出商队护卫模式卫兵塔，可选中/取消（塔级指派）。 */
+/**
+ * 需求（商队护卫）：商队小屋【护卫】页——布局/按钮样式/按钮文字参照
+ * 矿井【守卫指派】页（layoutguardlist.xml：guardName + assignGuard 按钮），
+ * 列出【商队护卫】模式的卫兵，分配/取消分配作用于其卫兵塔（塔级指派）。
+ */
 public class WindowCaravanGuard extends AbstractModuleWindow<CaravanGuardModuleView>
 {
     private static final String LIST_GUARDS = "guards";
@@ -27,7 +31,8 @@ public class WindowCaravanGuard extends AbstractModuleWindow<CaravanGuardModuleV
     {
         super(moduleView, ResourceLocation.fromNamespaceAndPath(CaravanMod.MODID, "gui/layouthuts/layoutcaravanguard.xml"));
         this.guardList = findPaneOfTypeByID(LIST_GUARDS, ScrollingList.class);
-        this.emptyText = findPaneOfTypeByID("guardEmpty", Text.class);
+        this.emptyText = findPaneOfTypeByID("noguardwarning", Text.class);
+        registerButton("assignGuard", this::assignGuardClicked);
     }
 
     @Override
@@ -44,13 +49,24 @@ public class WindowCaravanGuard extends AbstractModuleWindow<CaravanGuardModuleV
         updateGuards();
     }
 
+    private void assignGuardClicked(final Button button)
+    {
+        final int row = guardList.getListElementIndexByPane(button);
+        final List<GuardEntry> guards = moduleView.getGuards();
+        if (row < 0 || row >= guards.size())
+        {
+            return;
+        }
+        final GuardEntry entry = guards.get(row);
+        new CaravanGuardAssignMessage(buildingView, entry.towerPos(), !entry.assigned()).sendToServer();
+    }
+
     private void updateGuards()
     {
-        final List<GuardTowerEntry> towers = moduleView.getTowers();
-        if (towers.isEmpty())
+        final List<GuardEntry> guards = moduleView.getGuards();
+        if (guards.isEmpty())
         {
             emptyText.setVisible(true);
-            emptyText.setText(Component.translatable("com.caravan.gui.guard.empty"));
             guardList.setVisible(false);
             return;
         }
@@ -61,21 +77,19 @@ public class WindowCaravanGuard extends AbstractModuleWindow<CaravanGuardModuleV
             @Override
             public int getElementCount()
             {
-                return towers.size();
+                return guards.size();
             }
 
             @Override
             public void updateElement(final int index, final Pane rowPane)
             {
-                final GuardTowerEntry entry = towers.get(index);
+                final GuardEntry entry = guards.get(index);
                 rowPane.findPaneOfTypeByID("guardName", Text.class)
-                    .setText(Component.literal(entry.name() + "（" + entry.guardCount() + "）"));
-                final Button button = rowPane.findPaneOfTypeByID("guardButton", Button.class);
-                button.setText(Component.translatable(entry.assigned()
-                    ? "com.caravan.gui.guard.unassign"
-                    : "com.caravan.gui.guard.assign"));
-                button.setHandler(btn -> new CaravanGuardAssignMessage(
-                    buildingView, entry.towerPos(), !entry.assigned()).sendToServer());
+                    .setText(Component.literal(entry.name()));
+                rowPane.findPaneOfTypeByID("assignGuard", Button.class)
+                    .setText(Component.translatable(entry.assigned()
+                        ? "com.minecolonies.coremod.gui.hiring.buttonunassign"
+                        : "com.minecolonies.coremod.gui.hiring.buttonassign"));
             }
         });
     }
