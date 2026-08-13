@@ -2,6 +2,7 @@ package com.example.caravan.entity.ai;
 
 import com.example.caravan.CaravanMod;
 import com.example.caravan.colony.buildings.BuildingCaravanLeader;
+import com.example.caravan.colony.buildings.CaravanGuardHelper;
 import com.example.caravan.colony.buildings.modules.CaravanTradeModule;
 import com.example.caravan.colony.buildings.modules.TradeOfferData;
 import com.example.caravan.colony.buildings.modules.VillagerTradeEntry;
@@ -170,6 +171,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     /** 需求（回归机制）：回归后延迟解除隐形的倒计时（1 殖民地刻 = STATE_TICK），
      *  防止在回归瞬间立即现形。 */
     private int revealDelayTicks;
+    /** 需求（商队护卫）：护卫卫兵是否正处于战斗（战斗结束后等待其回到 6 格内）。 */
+    private boolean guardsWereInCombat;
     /** 需求（消耗品）：当前火把差额请求的令牌（建筑请求，送达小屋存储）。 */
     private IToken<?> torchRequestToken;
     /** 需求（统计）：本次行程累计消耗的火把/食物/帐篷数量（回归通报用）。 */
@@ -2817,6 +2820,12 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         {
             return walkThroughColony();
         }
+        // 需求（商队护卫）：护卫卫兵战斗时领袖停等——战斗结束后卫兵回到
+        // 领袖 6 格范围内才继续移动（模拟旅行中的隐形卫兵不参与判定）。
+        if (guardsBlockMovement())
+        {
+            return CaravanState.AWAY;
+        }
         final JobCaravanLeader.AwayPhase before = job.getAwayPhase();
         if (job.tickAway())
         {
@@ -3002,6 +3011,56 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         if (settled > 0)
         {
             grantTradeExperience(settled);
+        }
+    }
+
+    /** 需求（商队护卫）：是否存在需要等待的护卫卫兵（战斗中或战斗后未归队）。 */
+    private boolean guardsBlockMovement()
+    {
+        try
+        {
+            final java.util.List<AbstractEntityCitizen> guards =
+                CaravanGuardHelper.caravanGuardCitizens(job.getColony());
+            boolean anyVisible = false;
+            boolean anyCombat = false;
+            for (final AbstractEntityCitizen guard : guards)
+            {
+                if (guard.isInvisible())
+                {
+                    continue; // 模拟旅行中（消失）不参与判定。
+                }
+                anyVisible = true;
+                if (guard.getTarget() != null)
+                {
+                    anyCombat = true;
+                }
+            }
+            if (anyCombat)
+            {
+                guardsWereInCombat = true;
+                return true;
+            }
+            if (guardsWereInCombat)
+            {
+                if (!anyVisible)
+                {
+                    guardsWereInCombat = false; // 无可见卫兵（死亡/解散）→ 继续。
+                    return false;
+                }
+                for (final AbstractEntityCitizen guard : guards)
+                {
+                    if (!guard.isInvisible() && guard.distanceToSqr(worker) > 36)
+                    {
+                        return true; // 战斗结束，等待卫兵回到 6 格内。
+                    }
+                }
+                guardsWereInCombat = false; // 全部归队 → 继续移动。
+            }
+            return false;
+        }
+        catch (final Exception ignored)
+        {
+            return false;
         }
     }
 

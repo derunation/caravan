@@ -10,6 +10,9 @@ import com.minecolonies.core.colony.buildings.AbstractBuildingGuards;
 import com.minecolonies.core.colony.buildings.modules.WorkerBuildingModule;
 import net.minecraft.core.BlockPos;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** 需求（商队护卫）：商队小屋与卫兵 AI（mixin）共用的护卫状态查询工具。 */
 public final class CaravanGuardHelper
 {
@@ -57,6 +60,15 @@ public final class CaravanGuardHelper
             .orElse(leaderJob.getCitizen().getHomePosition());
     }
 
+    /** 商队领袖实体（可能未加载，返回 null）。 */
+    public static AbstractEntityCitizen leaderEntity(final BuildingCaravanLeader hut)
+    {
+        final JobCaravanLeader leaderJob = findLeaderJob(hut);
+        return leaderJob != null
+            ? leaderJob.getCitizen().getEntity().orElse(null)
+            : null;
+    }
+
     /** 该建筑是否为“商队护卫”工作模式的卫兵塔。 */
     public static boolean isCaravanTower(final IBuilding building)
     {
@@ -99,6 +111,36 @@ public final class CaravanGuardHelper
         {
             return null;
         }
+    }
+
+    /** 殖民地中所有“商队护卫”模式且其卫兵塔已被选中的卫兵实体（未加载的跳过）。 */
+    public static List<AbstractEntityCitizen> caravanGuardCitizens(final IColony colony)
+    {
+        final List<AbstractEntityCitizen> result = new ArrayList<>();
+        if (colony == null || colony.getServerBuildingManager() == null)
+        {
+            return result;
+        }
+        final BuildingCaravanLeader hut = findCaravanHut(colony);
+        if (hut == null)
+        {
+            return result;
+        }
+        for (final IBuilding building : colony.getServerBuildingManager().getBuildings().values())
+        {
+            if (!isCaravanTower(building) || !isTowerAssigned(building, hut))
+            {
+                continue;
+            }
+            for (final WorkerBuildingModule module : building.getModulesByType(WorkerBuildingModule.class))
+            {
+                for (final ICitizenData data : module.getAssignedCitizen())
+                {
+                    data.getEntity().ifPresent(result::add);
+                }
+            }
+        }
+        return result;
     }
 
     /** 从商队小屋工作模块中查找商队领袖的 job。 */
