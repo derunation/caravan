@@ -12,11 +12,13 @@ import com.minecolonies.api.entity.ai.statemachine.tickratestatemachine.IBoolean
 import com.minecolonies.api.entity.ai.statemachine.tickratestatemachine.IStateSupplier;
 import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
 import com.minecolonies.api.inventory.InventoryCitizen;
+import com.minecolonies.api.util.InventoryUtils;
 import com.minecolonies.api.util.ItemStackUtils;
 import com.minecolonies.core.colony.buildings.modules.EntityListModule;
 import com.minecolonies.core.colony.buildings.modules.WorkerBuildingModule;
 import com.minecolonies.core.entity.ai.workers.AbstractEntityAIBasic;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -25,6 +27,7 @@ import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
+import net.neoforged.neoforge.items.IItemHandler;
 
 /**
  * 商队卫兵 AI（需求：守卫-跟随-索敌战斗，参照 Minecolonies 本体骑士/卫兵塔 AI）。
@@ -225,12 +228,34 @@ public class EntityAIWorkCaravanGuard extends AbstractEntityAIBasic<JobCaravanGu
     }
 
     /**
-     * 需求（装备领取）：请求送达背包的武器/护甲自动穿戴——
+     * 需求（装备领取）：公民请求的装备由快递员送达【小屋存储】（本体机制：
+     * CitizenData.createRequest 内部即 work building 请求），因此这里先
+     * 从小屋存储领取武器/护甲（本体 checkForToolOrWeapon 同款转移），
+     * 再把背包中的武器/护甲自动穿戴——
      * 护甲放入对应装备槽，武器（任意可作武器的物品）放入主手。
      */
     private void handleEquipment()
     {
         final InventoryCitizen inventory = worker.getInventoryCitizen();
+        // 1. 从小屋存储领取武器/护甲（送达小屋存储的公民请求装备）。
+        final IItemHandler hut = building.getItemHandlerCap((Direction) null);
+        if (hut != null)
+        {
+            for (int slot = 0; slot < hut.getSlots(); slot++)
+            {
+                final ItemStack stack = hut.getStackInSlot(slot);
+                if (stack.isEmpty())
+                {
+                    continue;
+                }
+                if (stack.getItem() instanceof ArmorItem
+                    || ItemStackUtils.doesItemServeAsWeapon(stack))
+                {
+                    InventoryUtils.transferItemStackIntoNextFreeSlotInItemHandler(hut, slot, inventory);
+                }
+            }
+        }
+        // 2. 背包 → 穿戴。
         for (int slot = 0; slot < inventory.getSlots(); slot++)
         {
             final ItemStack stack = inventory.getStackInSlot(slot);

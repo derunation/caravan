@@ -1,5 +1,9 @@
 # 商队（Caravan）Mod 更新日志
 
+## 0.7.9
+- 修复（卫兵装备领取）：确认本体机制——公民请求（`CitizenData.createRequest`）内部即“工作建筑请求”，快递员送达小屋存储；本体的“领取”由卫兵 AI 从小屋存储把装备转移到背包（`checkForToolOrWeapon`/`equipInventoryArmor`）。卫兵 AI 现增加该领取逻辑（小屋存储 → 背包 → 穿戴）。
+- 装备栏顺序说明：反编译确认本体 `ContainerCitizenInventory` 按 MC `EquipmentSlot.values()` 顺序渲染（FEET 在上、HEAD 在下），`getIndex()` 映射 FEET=0…HEAD=3，本体市民与商队卫兵使用同一存储/映射，顺序一致。
+
 ## 0.7.8
 - 修复（卫兵装备领取）：装备请求改为真正的公民请求（`CitizenData.createRequest`，requester=卫兵市民，快递员直接送达市民背包）——此前 `building.createRequest(guard, …)` 只是“关联公民”的建筑请求，快递员会送到小屋存储导致卫兵永远拿不到装备。
 
