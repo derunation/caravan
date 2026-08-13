@@ -139,11 +139,11 @@ public class CaravanGuardEquipmentModule extends AbstractBuildingModule implemen
             default -> gear.addAll(GuardGearBuilder.buildGearForLevel(
                 3, Integer.MAX_VALUE, anyLevel, new Tuple<>(4, 5)));
         }
-        // 剑：本体在 toolsNeeded（EntityAIKnight），等级上限 = 建筑最大装备等级（5 级 → 5 级武器）。
+        // 剑：本体在 toolsNeeded（EntityAIKnight），等级上限 = 建筑最大装备等级
+        // （5 级 → 5 级武器）；最低等级不设要求（1-5 级武器均可匹配）。
         final int maxWeaponLevel = Math.min(5, level);
-        final int minWeaponLevel = level >= 5 ? 3 : (level >= 3 ? 2 : 1);
         gear.add(new GuardGear(ModEquipmentTypes.sword.get(), EquipmentSlot.MAINHAND,
-            minWeaponLevel, maxWeaponLevel, anyLevel, new Tuple<>(1, 5)));
+            1, maxWeaponLevel, anyLevel, new Tuple<>(1, 5)));
         return gear;
     }
 
