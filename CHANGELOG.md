@@ -1,5 +1,10 @@
 # 商队（Caravan）Mod 更新日志
 
+## 0.8.3
+- 修复（卫兵塔工作模式无【商队护卫】）：改为在 `StringSetting.getSettings()` 动态追加选项（覆盖已从 NBT 反序列化的旧卫兵塔设置，不再依赖构造注入）；输出一次诊断日志。
+- GUI：商队小屋【护卫】页图标改为【矿井】-【守卫指派】页图标（`minecolonies:textures/gui/modules/sword.png`）。
+- 诊断：卫兵 AI 判定【商队护卫】模式时输出一次日志（含是否被商队小屋选中）。
+
 ## 0.8.2
 - 修复崩溃（mixin）：`AbstractEntityAIGuardMixin` 不再 `@Shadow` 父类字段（mixin 无法在目标类解析继承字段）——只 shadow 目标类自身的 `buildingGuards`；指派改为【塔级】（`CaravanGuardModule` 持久化被选中的卫兵塔位置，AI 按卫兵塔位置判定），无需访问卫兵实体字段。
 

@@ -29,6 +29,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(AbstractEntityAIGuard.class)
 public abstract class AbstractEntityAIGuardMixin
 {
+    /** 需求（诊断）：商队护卫模式诊断是否已输出过（防刷屏）。 */
+    private static boolean caravan$diagnosed;
+
     @Shadow(remap = false)
     protected IGuardBuilding buildingGuards;
 
@@ -48,6 +51,15 @@ public abstract class AbstractEntityAIGuardMixin
     @Inject(method = "decide", at = @At("HEAD"), cancellable = true, remap = false)
     private void caravan$decide(final CallbackInfoReturnable<IAIState> cir)
     {
+        // 需求（诊断）：工作模式为【商队护卫】时输出一次判定信息（是否被商队小屋选中）。
+        if (!caravan$diagnosed
+            && CaravanGuardHelper.CARAVAN_TASK_KEY.equals(buildingGuards.getTask()))
+        {
+            caravan$diagnosed = true;
+            com.example.caravan.CaravanMod.LOGGER.info(
+                "Caravan: 卫兵塔 {} 为【商队护卫】模式（被商队小屋选中={}）",
+                buildingGuards.getPosition(), activeHut() != null);
+        }
         final BuildingCaravanLeader hut = activeHut();
         if (hut == null)
         {

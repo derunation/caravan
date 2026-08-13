@@ -6,6 +6,7 @@ import com.minecolonies.api.colony.buildings.modules.AbstractBuildingModuleView;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,5 +51,12 @@ public class CaravanGuardModuleView extends AbstractBuildingModuleView
     public Component getDesc()
     {
         return Component.translatable("com.caravan.gui.guard");
+    }
+
+    /** 需求（GUI）：标签页图标使用【矿井】-【守卫指派】页图标（sword.png）。 */
+    @Override
+    public ResourceLocation getIconResourceLocation()
+    {
+        return ResourceLocation.fromNamespaceAndPath("minecolonies", "textures/gui/modules/sword.png");
     }
 }
