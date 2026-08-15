@@ -1,3 +1,0 @@
-// leftover pack.json from the old layout; intentionally invalid so structurize
-// skips this empty pack. Safe to delete once the file lock is released.
-this is not valid json
