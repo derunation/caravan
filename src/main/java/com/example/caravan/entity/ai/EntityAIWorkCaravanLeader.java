@@ -11,7 +11,6 @@ import com.example.caravan.colony.jobs.JobCaravanLeader;
 import com.example.caravan.colony.jobs.JobCaravanLeader.TripStatus;
 import com.example.caravan.colony.jobs.JobCaravanLeader.TripTrade;
 import com.example.caravan.colony.jobs.JobCaravanLeader.CaravanStatus;
-import com.example.caravan.debug.DebugFlags;
 import com.example.caravan.entity.CaravanExperienceHandler;
 import com.minecolonies.api.colony.ICitizenData;
 import com.minecolonies.api.colony.requestsystem.manager.IRequestManager;
@@ -93,9 +92,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
 {
     /** 殖民地半径（格）：离开该范围视为“外出”。 */
     private static final int COLONY_EXIT_RANGE = 100;
-    /** 需求（取货机制）：从小屋存储取货/入库所需的“容器旁”距离平方（6 格）。 */
     private static final int STORAGE_RANGE_SQUARED = 36;
-    /** 需求（游荡）：小屋范围内游荡的半径（格）。 */
     private static final int WANDER_RADIUS = 5;
     /** 备货完成后的等待时间（游戏刻）。 */
     private static final int PREPARE_WAIT_TICKS = 400;
@@ -121,7 +118,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         AWAY,
         /** 回归：回小屋并入库，必要时继续剩余订单。 */
         RETURN,
-        /** 需求：空闲/备货时在小屋范围内游荡。 */
         WANDER;
 
         @Override
@@ -144,7 +140,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     private long lastDailyCheckDay = -1;
     /** 已创建的请求令牌（按物品去重，防止同一物品被反复请求）。 */
     private final Map<Item, IToken<?>> trackedRequests = new HashMap<>();
-    /** 需求（帐篷修复）：当前帐篷差额请求的令牌——使用【建筑请求】而非公民请求，
+    /**
      *  避免市民因待处理的公民请求进入 minecolonies 的 NEEDS_ITEM（“正在等待所需物品”）
      *  状态后本 AI 停止执行、无法再提取/请求帐篷。 */
     private IToken<?> tentRequestToken;
@@ -154,37 +150,22 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     private TripTrade currentTrade;
     /** 上次应用速度加成的敏捷等级（变化时才刷新，避免每 tick 重复加修饰符）。 */
     private int lastAgilityLevel = -1;
-    /** 需求：本次行程是否已发送“与X名村民进行Y项交易”汇总消息（每个行程只发一次）。 */
-    private boolean tradeSummarySent;
-    /** 需求（游荡）：游荡计时器与当前游荡目标。 */
     private int wanderTimer;
     private BlockPos wanderTarget;
-    /** 需求（防卡死）：穿越殖民地步行的计时器（游戏刻）。 */
     private int colonyWalkTicks;
-    /** 需求（防卡死）：穿越殖民地步行的超时（1200 刻 = 60 秒）——
+    /**
      *  出口点不可达/寻路卡住时强制继续模拟，避免距离永久冻结。 */
     private static final int COLONY_WALK_TIMEOUT = 1200;
-    /** 需求（商队帐篷）：本次行程是否已扣除过出发耐久（每次出行只扣一次）。 */
     private boolean tripTentDeducted;
-    /** 需求（疾病）：上次无帐篷过夜累计患病概率的游戏日（防同夜重复累计）。 */
-    private long lastIllnessNightDay = -1;
-    /** 需求（回归机制）：回归后延迟解除隐形的倒计时（1 殖民地刻 = STATE_TICK），
+    /**
      *  防止在回归瞬间立即现形。 */
     private int revealDelayTicks;
-    /** 需求（商队护卫）：护卫卫兵是否正处于战斗（战斗结束后等待其回到 6 格内）。 */
     private boolean guardsWereInCombat;
-    /** 需求（消耗品）：当前火把差额请求的令牌（建筑请求，送达小屋存储）。 */
     private IToken<?> torchRequestToken;
-    /** 需求（统计）：本次行程累计消耗的火把/食物/帐篷数量（回归通报用）。 */
     private int torchConsumedTotal;
     private int foodConsumedTotal;
     private int tentConsumedTotal;
-    /** 需求（统计）：当天消耗的食物/火把数量（每日扎营总结日志用）。 */
-    private int foodConsumedToday;
-    private int torchConsumedToday;
-    /** 需求（bug 修复）：上次扎营扣除帐篷耐久的游戏日（防重，替代 sleeping 标志）。 */
     private long lastTentDeductDay = -1;
-    /** 需求（模拟状态机）：上次“露宿中醒来”提升患病概率的游戏日（防重）。 */
     private long lastRoughWakeDay = -1;
 
     public EntityAIWorkCaravanLeader(final JobCaravanLeader job)
@@ -196,7 +177,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             new AITarget<IAIState>(AIWorkerState.IDLE,
                 (IBooleanConditionSupplier) this::hasWorkToDo,
                 (IStateSupplier<IAIState>) () -> AIWorkerState.START_WORKING, 20),
-            // 需求（游荡修复）：无工作可做时也离开 IDLE——进入小屋范围内的游荡状态
             // （原实现只在有活干时才会进入 START_WORKING → decide，空闲时永远停在 IDLE）。
             new AITarget<IAIState>(AIWorkerState.IDLE,
                 (IBooleanConditionSupplier) () -> !hasWorkToDo(),
@@ -211,9 +191,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             new AITarget<IAIState>(CaravanState.WANDER, (IStateSupplier<IAIState>) this::wander, STATE_TICK));
 
         worker.setCanPickUpLoot(true);
-        // 需求：敏捷 → 移动速度（与快递员一致：每级敏捷 +0.003）。
         refreshSpeedBonus();
-        // 需求：商队领袖自定义属性经验分配（敏捷100%/运动10%/魔力-10%/智力50%/力量5%/专注-5%）。
         worker.setCitizenExperienceHandler(
             new CaravanExperienceHandler(worker, worker.getCitizenExperienceHandler()));
     }
@@ -234,13 +212,11 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         {
             return true;
         }
-        // 需求2：每天白天开始时（若不在小屋附近）也要回小屋方块。
         if (isDayStart() && !canAccessHutStorage())
         {
             return true;
         }
         final CaravanTradeModule module = building.getFirstModuleOccurance(CaravanTradeModule.class);
-        // 需求（请求系统接入）：按需交易无实际请求缺口时不视为有事可做，避免商队空转。
         return module != null && module.hasWorkableOffers();
     }
 
@@ -256,7 +232,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
      */
     protected IAIState decide()
     {
-        // 需求：敏捷等级可能因升级变化，每次决策前刷新速度加成。
         refreshSpeedBonus();
         if (job.isAway())
         {
@@ -269,12 +244,10 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             acquireOrderFromBuilding();
             if (!job.hasActiveTrip())
             {
-                // 需求2：空闲且白天开始时，先回小屋方块（每日例行）。
                 if (isDayStart() && !canAccessHutStorage())
                 {
                     return CaravanState.GOTO_HUT;
                 }
-                // 需求：空闲时在小屋范围内游荡（而非原地站立）。
                 return CaravanState.WANDER;
             }
         }
@@ -286,10 +259,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return CaravanState.PREPARE;
     }
 
-    /** 需求：空闲时在小屋范围内游荡——贴近目标或超时后选新目标。 */
     private IAIState wander()
     {
-        // 需求（帐篷修复）：空闲/等待阶段也执行帐篷检查——否则“没有帐篷 → 无可用
         // 交易 → 不进入备货”时永远不会请求/提取帐篷，只能靠解雇-重新雇佣重置。
         checkTentAndPrepare();
         if (hasWorkToDo())
@@ -308,7 +279,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return CaravanState.WANDER;
     }
 
-    /** 需求：备货等待期间也在小屋范围内游荡（保持在小屋存储范围内）。 */
     private void wanderNearHut()
     {
         if ((wanderTimer += STATE_TICK) < 100)
@@ -337,7 +307,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求：敏捷影响移动速度，程度与快递员相同。
      * 参考 JobDeliveryman.onLevelUp：向 MOVEMENT_SPEED 添加 ADD_VALUE 修饰符，
      * 数值 = 敏捷等级 × 0.003（基础速度 0.3，EntityCitizen.getSpeed 上限 0.5）。
      */
@@ -360,7 +329,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     /** 每日例行回小屋：走到小屋方块附近后回到待机。 */
     private IAIState goToHut()
     {
-        // 需求（文本显示）：向小屋移动 → 展示“返回中”。
         job.setDisplayPhase(JobCaravanLeader.AwayPhase.RETURNING);
         if (walkToBuilding())
         {
@@ -372,7 +340,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     /** 是否为“白天开始”（dayTime 0~99，即日出后约 5 秒内）。 */
     private boolean isDayStart()
     {
-        // 修复bug：昼夜判定必须用真实 dayTime——玩家睡觉跳过夜晚时 dayTime 跳变、
         // gameTime 不跳，二者偏差会永久累积，导致商队作息错乱。
         return world.getDayTime() % 24000L < 100L;
     }
@@ -401,7 +368,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         final List<Integer> tradeIndices = module.getCurrentTradeIndices();
         if (tradeIndices.isEmpty())
         {
-            // 需求（请求链）：暂无可用交易（售出物未送达）——清空行程，等待请求系统。
             job.getTrip().clear();
             return;
         }
@@ -428,47 +394,20 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         if (!offers.isEmpty())
         {
             job.startTrip(offers);
-            // 需求（bug 修复）：通知模块行程已开始（抑制行程中的售出物补建）。
             module.setTripActive(true);
             tripTentDeducted = false; // 每轮行程重置出发扣耐久标记。
-            tradeSummarySent = false;
-            // 需求（统计）：每轮行程重置消耗统计（回归通报用）。
             torchConsumedTotal = 0;
             foodConsumedTotal = 0;
             tentConsumedTotal = 0;
-            torchConsumedToday = 0;
-            foodConsumedToday = 0;
-            // 需求（诊断·断点）：输出本次行程的交易摘要（索引+副本数）。
-            final StringBuilder summary = new StringBuilder();
-            for (final int idx : tradeIndices)
-            {
-                final var offer = module.getOffer(idx);
-                summary.append('[').append(idx).append('x')
-                    .append(module.getCurrentTradeCopies(idx))
-                    .append(offer != null ? offer.result().getHoverName().getString() : "?")
-                    .append(']');
-            }
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: 领取订单：行程 {} 笔，{}",
-                offers.size(), summary);
-            debugLog("com.caravan.debug.action.acquire");
         }
         else
         {
-            // 需求（非递归重构）：当前无可执行交易时清空行程，避免残留上一轮任务。
             job.getTrip().clear();
             module.setTripActive(false);
         }
     }
 
-    /** 调试模式：向开启调试的玩家输出行动信息（本地化）。 */
-    private void debugLog(final String key, final Object... args)
-    {
-        DebugFlags.sendDebug(world, Component.translatable(key, args));
-    }
-
     /**
-     * 需求（商队帐篷）：是否为“殖民地规定的睡眠时间”——
      * 参照 minecolonies 的 CitizenSleepHandler.shouldGoSleep 时间窗口：
      * 默认 dayTime ≥ 12600（19:00）进入睡眠，研究 WORK_LONGER（工作更久）
      * 每级把入睡时间延后 1000 刻；dayTime = 0（6:00）醒来。
@@ -494,7 +433,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（火把）：日落时刻（游戏刻）——安装 EclipticSeasons 时使用其按季节
      * 动态的白天长度计算（getNightTime = 6000 + 白天长度/2，夏季日落更晚、
      * 冬季更早）；未安装时回退原版日落 12000。
      */
@@ -511,7 +449,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（商队帐篷·新流程）：等待物品阶段每殖民地刻执行——
      * <ol>
      *   <li>领袖背包已有帐篷 → 由外层按“帐篷 + 售出品就绪”判定出发条件；</li>
      *   <li>否则小屋存储有帐篷 → 移入领袖背包（领袖背包满时先把一个物品移到
@@ -522,38 +459,24 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
      */
     private void checkTentAndPrepare()
     {
-        // 需求（消耗品）：与帐篷检查同时检查食物与火把差额（只为火把创建差额请求）。
         checkFoodAndTorch();
-        // 需求（设置）：帐篷携带量（默认 1）。
         final int target = targetTentCount();
         final int inCaravan = countTentsInCaravan();
         if (inCaravan >= target)
         {
-            // 需求（帐篷修复）：已满足时清理残留的差额请求。
             cancelTentRequestIfOpen();
             extractAllForTrip();
             return;
         }
         // 从小屋存储按差额提取到领袖背包（满则腾位；成员/小屋兜底）。
-        final int extractedCount = extractTentsFromHut();
-        // 需求（诊断·断点）：成功从小屋提取时立即记录一次（便于确认提取动作发生）。
-        if (extractedCount > 0)
-        {
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: 从小屋提取帐篷 {} 个（目标={} 提取后背包={} 小屋剩余={}）",
-                extractedCount, target, countTentsInCaravan(), countTentsInHut());
-        }
-        // 需求（帐篷修复）：领取帐篷后重新按最新差额创建/复用请求——
-        // 不再使用基类 checkIfRequestForItemExistOrCreate（公民请求会让市民进入
-        // NEEDS_ITEM“正在等待所需物品”状态，且其“已完成请求不再创建”的防重会导致
-        // 差额永远补不上）；改为建筑请求，快递员送达小屋存储后由本 AI 提取。
+        extractTentsFromHut();
+        // 领取帐篷后按最新差额创建/复用请求（建筑请求，送达小屋存储后由本 AI 提取）。
         requestTentByDifference();
         // 每殖民地刻按差额从小屋提取交易品（出发等待期间持续补齐）。
         extractAllForTrip();
     }
 
     /**
-     * 需求（帐篷修复）：按最新差额创建/复用帐篷请求。
      * <ul>
      *   <li>请求挂在建筑（requester = 小屋）上，快递员把帐篷送到小屋存储，
      *       不会让市民进入 NEEDS_ITEM 状态，本 AI 可持续执行提取；</li>
@@ -587,19 +510,14 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 new com.minecolonies.api.colony.requestsystem.requestable.Stack(
                     tent, missing, 1));
             tentRequestToken = token;
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: 创建帐篷请求 商队帐篷 x1..{}（建筑请求，送达小屋存储）", missing);
-            debugLog("com.caravan.debug.action.request",
-                tent.getHoverName().getString(), missing);
         }
         catch (final Exception ignored)
         {
-            debugLog("com.caravan.debug.action.request_failed",
-                com.example.caravan.CaravanMod.CARAVAN_TENT.get().getDescription().getString(), missing);
+            // 请求失败不阻塞备货。
         }
     }
 
-    /** 需求（帐篷修复）：帐篷已满足时取消残留的差额请求（异常安全）。 */
+    /** 帐篷已满足时取消残留的差额请求（异常安全）。 */
     private void cancelTentRequestIfOpen()
     {
         final IRequestManager manager = job.getColony().getRequestManager();
@@ -612,8 +530,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             if (manager != null && isOpenRequest(manager, tentRequestToken))
             {
                 manager.updateRequestState(tentRequestToken, RequestState.CANCELLED);
-                com.example.caravan.CaravanMod.LOGGER.info(
-                    "Caravan: 帐篷已满足，取消残留的帐篷请求 {}", String.valueOf(tentRequestToken));
             }
         }
         catch (final Exception ignored)
@@ -624,7 +540,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（消耗品）：食物与火把的差额检查——
      * <ul>
      *   <li>食物：统计商队物品栏中菜单食物的组数差额，不创建请求
      *       ——仿照帐篷/火把，先从小屋存储按差额提取到物品栏
@@ -639,7 +554,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         requestTorchByDifference();
     }
 
-    /** 需求（设置）：商队食物携带组数（菜单页选择的食物按此组数保留/携带）。 */
     private int targetFoodStacks()
     {
         try
@@ -654,7 +568,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 需求（设置）：商队火把携带组数。 */
     private int targetTorchStacks()
     {
         try
@@ -669,7 +582,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 需求（消耗品）：商队物品栏中【菜单】选中食物的总数（个）。 */
     private int countFoodInCaravan()
     {
         try
@@ -704,7 +616,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 需求（消耗品）：小屋存储 + 商队物品栏中【菜单】选中食物的总数（个）。 */
     private int countFoodAvailable()
     {
         int count = countFoodInCaravan();
@@ -741,7 +652,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（消耗品）：仿照帐篷/火把——从小屋存储按差额提取【菜单】选中的食物
      * 到领袖/成员背包（优先领袖，放不下依次转成员，仍放不下放回小屋）。
      */
     private void extractFoodsFromHut()
@@ -809,7 +719,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 需求（消耗品）：从小屋存储按差额提取火把到领袖/成员背包（任意槽位）。 */
     private void extractTorchesFromHut()
     {
         if (!canAccessHutStorage())
@@ -860,7 +769,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 需求（消耗品）：火把差额请求——目标组数 × 64 与（商队物品栏 + 小屋）已有量之差。 */
     private void requestTorchByDifference()
     {
         final int target = targetTorchStacks() * 64;
@@ -888,8 +796,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 new com.minecolonies.api.colony.requestsystem.requestable.Stack(
                     torch, missing, 1));
             torchRequestToken = token;
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: 创建火把请求 x1..{}（建筑请求，送达小屋存储）", missing);
         }
         catch (final Exception ignored)
         {
@@ -897,7 +803,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 需求（消耗品）：火把已满足时取消残留的差额请求（异常安全）。 */
     private void cancelTorchRequestIfOpen()
     {
         final IRequestManager manager = job.getColony().getRequestManager();
@@ -910,8 +815,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             if (manager != null && isOpenRequest(manager, torchRequestToken))
             {
                 manager.updateRequestState(torchRequestToken, RequestState.CANCELLED);
-                com.example.caravan.CaravanMod.LOGGER.info(
-                    "Caravan: 火把已满足，取消残留的火把请求 {}", String.valueOf(torchRequestToken));
             }
         }
         catch (final Exception ignored)
@@ -940,7 +843,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（帐篷提取修复）：从小屋存储按差额提取商队帐篷（任意耐久度均可），
      * 优先放入领袖背包，放不下则依次放入商队成员背包，仍放不下则放回小屋。
      * 返回实际提取到背包中的帐篷数量。
      */
@@ -997,7 +899,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return extractedCount;
     }
 
-    /** 小屋存储中商队帐篷的总数（任意耐久度），供诊断与出发判定使用。 */
     private int countTentsInHut()
     {
         final IItemHandler hut = building.getItemHandlerCap((Direction) null);
@@ -1031,7 +932,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return false;
     }
 
-    /** 需求（设置）：商队帐篷携带量（小屋【设置】页配置，0..32，0 = 允许无帐篷出行）。 */
     private int targetTentCount()
     {
         try
@@ -1064,11 +964,9 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return count;
     }
 
-    /** 需求（商队帐篷·出发条件）：小屋存储或领袖/成员背包中的帐篷总数（≥ 携带量即就绪）。 */
     private int countTentsAvailable()
     {
         int count = countTentsInCaravan();
-        // 需求（bug 修复）：商队小屋存储中的帐篷也计入“帐篷就绪”判定——
         // 读取小屋容器不需要靠近（只有提取才需要），确保出发条件检测
         // 覆盖 领袖背包 + 成员背包 + 小屋存储 三处。
         final IItemHandler hut = building.getItemHandlerCap((Direction) null);
@@ -1087,7 +985,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（商队帐篷·腾位）：领袖背包已满时为帐篷腾出一个位置——
      * 把一个非帐篷物品移到商队成员背包（按成员顺序，第一个有空间的成员）；
      * 所有成员背包均满或没有成员 → 把该物品移到小屋存储。
      */
@@ -1145,7 +1042,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（商队帐篷）：帐篷耐久处理——
      * <ul>
      *   <li>扎营（sleepRest 入睡）时（actuallyDeduct=true）按商队人数实际扣除耐久
      *       （耐久归零时帐篷消失）；</li>
@@ -1155,7 +1051,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
      */
     private void deductTentDurability(final boolean actuallyDeduct)
     {
-        // 需求（商队护卫）：模拟旅行中护卫卫兵视同商队成员，一并计入帐篷耐久消耗人数。
         final int x = 1 + caravanMembers().size()
             + CaravanGuardHelper.caravanGuardCitizens(job.getColony()).size();
         for (final InventoryCitizen inventory : allCaravanInventories())
@@ -1171,10 +1066,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                         if (stack.getDamageValue() >= stack.getMaxDamage())
                         {
                             stack.setCount(0);
-                            // 需求（统计）：耐久归零消失的帐篷计入回归通报。
                             tentConsumedTotal++;
                         }
-                        // 修复bug：直接修改 ItemStack 不会触发市民数据持久化——
                         // 实体卸载/重载后帐篷耐久会回退到旧值，必须标记背包 dirty。
                         inventory.markDirty();
                     }
@@ -1185,45 +1078,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（疾病/日志）：模拟旅行中每日扎营总结——
-     * 无帐篷过夜时每名（未生病）商队人员 +5% 患病概率（按游戏日防重，返程结算）；
-     * 日志改为总结当天消耗食物量、火把量以及有/无帐篷扎营
-     * （有帐篷记录帐篷耐久度；无帐篷记录当前累计患病几率）。
-     */
-    private void accumulateNightIllness()
-    {
-        if (!job.isAway())
-        {
-            return;
-        }
-        final long day = world.getGameTime() / 24000L;
-        if (day == lastIllnessNightDay)
-        {
-            return; // 同一天只累计一次（防重复）。
-        }
-        lastIllnessNightDay = day;
-        final boolean hasTent = countTentsInCaravan() > 0;
-        // 需求（日志）：每天输出扎营总结（世界游戏日 + 当天消耗 + 帐篷/患病情况）。
-        // 注：帐篷耐久扣除与患病概率提升已由模拟状态机在“扎营/露宿醒来”时执行。
-        if (hasTent)
-        {
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: [商队{}] 游戏日 {} 扎营总结：消耗食物 {}，火把 {}，有帐篷（帐篷耐久 {}）",
-                caravanIndex(), day, foodConsumedToday, torchConsumedToday, tentDurabilityForLog());
-        }
-        else
-        {
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: [商队{}] 游戏日 {} 扎营总结：消耗食物 {}，火把 {}，无帐篷（当前累计患病几率最高 {}%）",
-                caravanIndex(), day, foodConsumedToday, torchConsumedToday,
-                job.getMaxNightIllnessChance());
-        }
-        foodConsumedToday = 0;
-        torchConsumedToday = 0;
-    }
-
-    /**
-     * 需求（模拟旅行状态机·重构）：每殖民地刻按“当前时间 + 商队物品”决策模拟状态。
      * <ol>
      *   <li>时间 ≥ 殖民地工作时间 或 时间 < 100 刻（凌晨）：停止移动——
      *       有帐篷=扎营中，无帐篷=露宿中；</li>
@@ -1236,7 +1090,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
      */
     private JobCaravanLeader.CampStatus decideCampStatus()
     {
-        // 修复bug：昼夜判定改用真实 dayTime（玩家睡觉/时间命令会使 dayTime 跳变而
         // gameTime 不变，用 gameTime 判定会导致扎营/醒来时刻随偏差漂移）。
         final long dayTime = world.getDayTime() % 24000L;
         final JobCaravanLeader.CampStatus previous = job.getCampStatus();
@@ -1260,7 +1113,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 if (consumeOneTorch())
                 {
                     torchConsumedTotal++;
-                    torchConsumedToday++;
                 }
                 status = JobCaravanLeader.CampStatus.NIGHT_TRAVEL;
             }
@@ -1298,7 +1150,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return status;
     }
 
-    /** 需求（模拟状态机）：露宿醒来时每名商队人员 +5% 患病概率（每天一次）。 */
     private void raiseIllnessChanceForAll()
     {
         final long day = world.getGameTime() / 24000L;
@@ -1314,25 +1165,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 需求（日志）：商队物品栏中第一顶帐篷的剩余耐久（无帐篷返回 0）。 */
-    private int tentDurabilityForLog()
-    {
-        for (final InventoryCitizen inventory : allCaravanInventories())
-        {
-            for (int slot = 0; slot < inventory.getSlots(); slot++)
-            {
-                final ItemStack stack = inventory.getStackInSlot(slot);
-                if (stack.getItem() == com.example.caravan.CaravanMod.CARAVAN_TENT.get())
-                {
-                    return stack.getMaxDamage() - stack.getDamageValue();
-                }
-            }
-        }
-        return 0;
-    }
-
     /**
-     * 需求（食物）：商队人员饱食度下降到需要进食时（对应本体
      * EntityAIEatTask.GET_YOURSELF_SATURATION = 30），直接从商队任意一人的
      * 物品栏中食用【菜单】页选定的食物（接入本体 FoodUtils 进食代码）。
      */
@@ -1349,7 +1182,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             final List<AbstractEntityCitizen> caravan = new ArrayList<>();
             caravan.add(worker);
             caravan.addAll(caravanMembers());
-            // 需求（商队护卫）：模拟旅行中护卫卫兵视同商队成员，一并喂食。
             caravan.addAll(CaravanGuardHelper.caravanGuardCitizens(job.getColony()));
             for (final AbstractEntityCitizen member : caravan)
             {
@@ -1358,8 +1190,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 {
                     continue;
                 }
-                // 需求（进食阈值）：饱食度上限为 20；仅在低于 6 时开始进食。
-                // 需求（机制）：一旦开始进食，连续食用【菜单】食物直到饱食度 ≥ 18
                 // 或商队物品栏无菜单食物（每次吃 1 个，防止单次进食后仍饥饿）。
                 final double saturation;
                 try
@@ -1391,7 +1221,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                         // 进食前保存食物名（consumeFood 会消耗该栈，之后再读会显示“空气”）。
                         final String foodName = food.getHoverName().getString();
                         inventory.extractItem(foodSlot, 1, false);
-                        // 修复bug：确保食物消耗在实体卸载/重载后仍然保留。
                         inventory.markDirty();
                         // 必须用 ItemStackUtils.consumeFood（内部先按 minecolonies
                         // FoodUtils.getFoodValue 增加市民饱食度，再消耗食物）。
@@ -1415,7 +1244,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     }
                 }
                 foodConsumedTotal += eaten;
-                foodConsumedToday += eaten;
             }
         }
         catch (final Exception ignored)
@@ -1424,7 +1252,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 需求（食物）：在指定物品栏中查找【菜单】选中食物的第一个槽位（-1 = 无）。 */
     private int findMenuFoodSlot(
         final InventoryCitizen inventory,
         final java.util.Set<com.minecolonies.api.crafting.ItemStorage> menu)
@@ -1447,7 +1274,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return -1;
     }
 
-    /** 需求（火把）：从商队物品栏（领袖优先）消耗 1 个火把；成功返回 true。 */
     private boolean consumeOneTorch()
     {
         for (final InventoryCitizen inventory : allCaravanInventories())
@@ -1457,7 +1283,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 if (inventory.getStackInSlot(slot).getItem() == Items.TORCH)
                 {
                     inventory.extractItem(slot, 1, false);
-                    // 修复bug：确保火把消耗在实体卸载/重载后仍然保留。
                     inventory.markDirty();
                     return true;
                 }
@@ -1472,7 +1297,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return countTorchesInCaravan() > 0;
     }
 
-    /** 需求（疾病）：为一名商队人员累积 +5% 患病概率（已生病者跳过）。 */
     private void addIllnessChance(final ICitizenData citizen)
     {
         if (citizen == null || citizen.getCitizenDiseaseHandler().isSick())
@@ -1483,11 +1307,9 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（疾病）：返程后统一结算——按每名商队人员累积的概率判定是否患病，
      * 患病者获得一种 minecolonies 当前数据包中可出现的随机疾病
      * （DiseasesListener.getRandomDisease 按稀有度加权）。
      */
-    /** 需求（疾病）：返程结算患病人数（回归通报用）。 */
     private int settleNightIllness()
     {
         final Map<UUID, Integer> chances = job.takeNightIllnessChances();
@@ -1513,9 +1335,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     com.minecolonies.core.datalistener.DiseasesListener.getRandomDisease(world.random);
                 if (disease != null && citizen.getCitizenDiseaseHandler().setDisease(disease))
                 {
-                    com.example.caravan.CaravanMod.LOGGER.info(
-                        "Caravan: 市民 {} 因无帐篷过夜患病（概率 {}%）：{}",
-                        citizen.getName(), entry.getValue(), disease.name().getString());
                     sickCount++;
                 }
             }
@@ -1527,7 +1346,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return sickCount;
     }
 
-    /** 需求（通报）：商队回归时向殖民地玩家通报——商队编号、本次出行天数、
+    /**
      *  售出/获得物品件数、消耗火把/食物/帐篷数量、因无帐篷野营而患病人数。 */
     private void sendTripSummary(final int sickCount)
     {
@@ -1562,7 +1381,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（商队编号）：本商队小屋在所有商队小屋中的序号（从 1 开始）——
      * 按商队小屋建立顺序排序（colony 建筑管理器按注册顺序保存）。
      */
     private int caravanIndex()
@@ -1619,7 +1437,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
      */
     private IAIState prepareForTrip()
     {
-        // 需求1：每次进入备货都重新计算需求——与交易列表模块当前选择保持同步
         // （玩家改动选择后，立即增删本行程要执行的订单）。
         resyncTripFromModule();
         if (job.getTrip().isEmpty())
@@ -1634,49 +1451,37 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             return AIWorkerState.IDLE;
         }
 
-        // 需求2：存取小屋存储前必须先走到小屋方块附近；否则先寻路过去。
         if (!canAccessHutStorage())
         {
-            // 需求：参考快递员——先寻路到存储物品的容器旁边，再取货。
             walkToBuilding();
             return CaravanState.PREPARE;
         }
 
-        // 需求3（机制）：每个游戏日白天开始时做一次“尽力而为”检查——
         // 只要满足任意一个交易的最低要求，就直接出发，不再等待倒计时。
         dailyBestEffortCheck();
 
-        // 需求（商队帐篷）：等待物品阶段每殖民地刻检查——领袖背包帐篷 + 售出品就绪
         // 判定；小屋有帐篷则移入领袖背包（满则腾位），否则检查/发起请求。
         checkTentAndPrepare();
 
-        // 需求（机制更改）：每次备货都为行程中所有未满足交易一次性请求缺失的交易品
         // （按物品聚合，弹性 1-XX，trackedRequests 防重）。
-        // 需求（bug 修复）：不再因“任一交易已满足”而跳过——否则重复交易满足后，
         // 绿宝石补缺交易的售出品请求永远不会创建，商队永远等不到货（日志表现为
         // “[8x1红砖][0x10绿宝石]”只请求红砖、不请求绿宝石交易的售出品）。
         requestAllMissing();
-        // 需求1（修复）：物品已满足时主动清除其残留请求（并输出调试信息）。
         cancelSatisfiedRequests();
 
         totalPrepareTicks += STATE_TICK;
         detectTicks += STATE_TICK;
-        // 需求1（修复）：每 80 刻检测一次——物品栏满足至少一项交易 → 取消剩余请求。
         if (detectTicks >= 80)
         {
             detectTicks = 0;
-            // 需求（问题3修复）：按需请求被取消后，其售出品请求不再被行程需要，
             // 主动取消，避免残留请求占据请求系统并干扰快递员。
             cancelUnneededRequests();
-            // 需求（通报时机）：售出品齐备通报已移至模块每殖民地刻检测
             // （checkCompletedBroadcasts），不再依赖本 80 刻节拍。
         }
 
         final boolean hardCapReached = totalPrepareTicks >= MAX_PREPARE_TICKS;
-        // 需求（商队消耗品·出发条件）：帐篷、食物、火把分别达到【携带量】
         // （携带量为 0 时该项恒满足），且至少一项交易的售出品满足（小屋+背包）
         // 时才进入出发等待阶段（400 刻）。
-        // 需求（bug 修复）：消耗品条件是【硬性】——即使备货硬上限到达，
         // 没有帐篷/食物/火把也绝不出发（硬上限只豁免“售出品不足”）。
         final boolean tentReady = targetTentCount() <= 0 || countTentsAvailable() >= targetTentCount();
         final boolean foodReady = targetFoodStacks() <= 0 || countFoodAvailable() >= targetFoodStacks() * 64;
@@ -1687,7 +1492,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         {
             updateLeaderStatus(CaravanStatus.WAITING_ITEMS);
             prepareWait = 0;
-            // 需求：备货等待期间在小屋范围内游荡。
             wanderNearHut();
             return CaravanState.PREPARE;
         }
@@ -1701,9 +1505,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
 
         updateLeaderStatus(CaravanStatus.READY_TO_DEPART);
         prepareWait = Math.min(prepareWait + STATE_TICK, PREPARE_WAIT_TICKS);
-        // 需求4（机制）：只在“上午”（日出~正午）出发；
         // 交易品在下午/夜间送达时保持【等待出发】，次日日出后再走。
-        // 需求（修改机制）：等待期内若所有将进行的交易售出品均已收到且处于上午，
         // 则立刻出发，无需等满 400 刻。
         final boolean allSatisfied = allTradeSatisfied();
         if ((prepareWait < PREPARE_WAIT_TICKS && !(allSatisfied && isDepartureTime())) || !isDepartureTime())
@@ -1711,10 +1513,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             return CaravanState.PREPARE;
         }
 
-        // 需求（机制更改）：出发前一次性从小屋提取全部交易品（领袖放不下的
         // 转商队成员物品栏，仍放不下的保留在小屋存储）。
         extractAllForTrip();
-        // 需求（消耗品提取修复）：出发前必须真正携带帐篷/食物/火把
         // （仅统计领袖/成员背包；携带量为 0 的项跳过），
         // 防止“小屋有货但领袖未提取”时缺消耗品出发。
         final int missingTents = targetTentCount() - countTentsInCaravan();
@@ -1724,12 +1524,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         {
             updateLeaderStatus(CaravanStatus.WAITING_ITEMS);
             prepareWait = 0;
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: 消耗品仍未装入背包（帐篷缺 {}、食物缺 {}、火把缺 {}），暂不出发",
-                Math.max(0, missingTents), Math.max(0, missingFood), Math.max(0, missingTorches));
             return CaravanState.PREPARE;
         }
-        // 需求（商队帐篷）：出发时仅播报 debug 信息，不扣除帐篷耐久
         // （机制修改：取消出发时的耐久损耗；扎营时才实际扣除）。
         if (!tripTentDeducted)
         {
@@ -1750,15 +1546,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             }
             return CaravanState.PREPARE;
         }
-        // 需求3（debug）：出发时发送一次信息（目标坐标）。
-        final TripTrade nearest = nearestTripTrade();
-        if (nearest != null)
-        {
-            debugLog("com.caravan.debug.action.depart",
-                nearest.trade().villagePos().getX(),
-                nearest.trade().villagePos().getY(),
-                nearest.trade().villagePos().getZ());
-        }
         prepareWait = 0;
         totalPrepareTicks = 0;
         return CaravanState.DEPART;
@@ -1774,9 +1561,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     private IAIState depart()
     {
         updateLeaderStatus(CaravanStatus.TRADING);
-        // 需求（文本显示）：向交易目标移动 → 展示“旅行中”。
         job.setDisplayPhase(JobCaravanLeader.AwayPhase.OUTBOUND);
-        // 需求（商队护卫）：护卫卫兵战斗时领袖停等（出发步行阶段同样生效，
         // 不再仅限于 AWAY 模拟阶段）。
         if (guardsBlockMovement())
         {
@@ -1800,7 +1585,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         final IColony colony = job.getColony();
         final BlockPos target = currentTrade.trade().villagePos();
 
-        // 需求（真实领地）：使用 minecolonies 的区块归属判定（isCoordInColony），
         // 不再使用以殖民地为圆心的 100 格圆形。
         if (colony.isCoordInColony(world, target))
         {
@@ -1824,7 +1608,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求1：把行程订单与交易列表模块的当前选择重新对齐：
      * 已禁用/已完成的条目从行程中移除，新勾选的条目加入行程。
      */
     private void resyncTripFromModule()
@@ -1835,7 +1618,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             return;
         }
 
-        // 需求（多交易分摊）：行程只保留“当前可执行交易集合”的待执行副本。
         final List<Integer> tradeIndices = module.getCurrentTradeIndices();
         final Map<Integer, Integer> expectedCopies = new HashMap<>();
         for (final int index : tradeIndices)
@@ -1890,7 +1672,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求1/2：取消请求系统中针对“当前仍缺失”物品的打开请求。
      * 遍历小屋的全部打开请求（不分市民），按请求物品匹配缺失项后逐个取消。
      */
     private void cancelMissingRequests()
@@ -1930,7 +1711,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         try
         {
             final IRequest<?> request = manager.getRequestForToken(token);
-            // 需求（修复）：只取消“本 AI 创建的备货售出品请求”——
             // 以 trackedRequests 记录为准（本 AI 通过 requestElastic 创建的 Stack 请求）。
             // 旧实现误取消两类请求导致卡死：
             // 1) Delivery/Pickup 等交付请求（货物在领袖背包中必然缺失）；
@@ -1951,9 +1731,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             {
                 trackedRequests.remove(deliverable.getResult().getItem());
                 manager.updateRequestState(token, RequestState.CANCELLED);
-                // 需求1：清除请求时输出调试信息。
-                debugLog("com.caravan.debug.action.cancel",
-                    deliverable.getResult().getHoverName().getString());
             }
         }
         catch (final Exception ignored)
@@ -1962,10 +1739,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /**
-     * 需求1（修复）：物品已送达并满足需求时，清除其残留的打开请求
-     * （请求系统可能未自动关闭这些请求，这里主动清理并输出调试信息）。
-     */
     private void cancelSatisfiedRequests()
     {
         final IRequestManager manager = job.getColony().getRequestManager();
@@ -1978,7 +1751,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             final Item item = entry.getKey();
             final IToken<?> token = entry.getValue();
             final ItemStack probe = new ItemStack(item);
-            // 需求（机制更改）：满足判定统计小屋存储 + 领袖/成员物品栏。
             if (countInHut(probe) + countInInventory(probe) >= totalNeededFor(probe))
             {
                 trackedRequests.remove(item);
@@ -1988,7 +1760,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     if (request != null && isOpenRequest(manager, token))
                     {
                         manager.updateRequestState(token, RequestState.CANCELLED);
-                        debugLog("com.caravan.debug.action.cancel_satisfied", probe.getHoverName().getString());
                     }
                 }
                 catch (final Exception ignored)
@@ -1999,16 +1770,13 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 本次行程（未完成订单）对该物品的总需求量（按物品种类汇总）。 */
     private int totalNeededForItem(final Item item)
     {
         return totalNeededFor(new ItemStack(item));
     }
 
-    /** 是否为允许出发的时间窗（需求3）：每日 1000 刻起，至正午 6000 刻止。 */
     private boolean isDepartureTime()
     {
-        // 修复bug：出发时间窗同样基于真实 dayTime（避免睡觉后窗口偏移）。
         final long dayTime = world.getDayTime() % 24000L;
         return dayTime >= 1000L && dayTime < 6000L;
     }
@@ -2039,7 +1807,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return false;
     }
 
-    /** 需求（立即出发）：所有进行中的交易是否已全部可执行。 */
     private boolean allTradeSatisfied()
     {
         for (final TripTrade offer : job.getTrip())
@@ -2057,7 +1824,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（机制更改）：某笔交易当前是否“可执行”——
      * 检测同时统计【商队小屋存储 + 领袖/成员物品栏】内的数量；
      * 满足后进入出发等待，等待期间每殖民地刻按差额从小屋提取。
      */
@@ -2075,7 +1841,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（问题3修复）：行程已不再需要某物品（如按需请求被取消、相关交易已移除）时，
      * 取消其已创建的售出品请求，避免请求残留并干扰快递员任务队列。
      */
     private void cancelUnneededRequests()
@@ -2107,14 +1872,10 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             {
                 // 令牌可能已失效。
             }
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: 取消不再需要的售出品请求 {}", probe.getHoverName().getString());
-            debugLog("com.caravan.debug.action.cancel", probe.getHoverName().getString());
         }
     }
 
     /**
-     * 需求2（修复）：一次性为“全部被选交易”缺失的交易品创建弹性请求（1-XX）。
      * <ul>
      *   <li>按物品聚合本次行程所有未完成交易的缺额（同一物品跨多个交易/副本合并）；</li>
      *   <li>每个缺失物品直接通过请求管理器创建 1..缺额 的弹性请求（min=1），
@@ -2129,7 +1890,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         {
             return;
         }
-        // 需求（修复）：先聚合全部待执行交易对每种物品的总需求量，再一次性减去
         // 背包+小屋已有量得到总缺额——旧实现“每笔交易都减一次已有量”，
         // 多笔交易需要同一物品时缺额被严重低估（如 5 笔书架各需 9 绿宝石、已有 5，
         // 正确缺额 40，旧实现只算出 5×(9-5)=20），导致售出品请求数量不足。
@@ -2150,7 +1910,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         for (final Map.Entry<ItemStorage, Integer> entry : totalDemand.entrySet())
         {
             final ItemStack cost = entry.getKey().getItemStack();
-            // 需求（机制更改）：需求计算统计小屋存储 + 领袖/成员物品栏。
             final int deficit = entry.getValue() - countInHut(cost) - countInInventory(cost);
             if (deficit <= 0)
             {
@@ -2167,7 +1926,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
 
     /**
      * 弹性请求：1..totalMissing。
-     * 需求1（修复）：用“令牌跟踪”去重——记录每个物品已创建的请求令牌，
      * 只有该请求已结束（完成/取消/失败）后才允许重新创建，避免持续重复请求。
      */
     private void requestElastic(final IRequestManager manager, final ItemStack item, final int totalMissing)
@@ -2178,37 +1936,24 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             return;
         }
         trackedRequests.remove(item.getItem());
-        // 需求（非递归重构）：备货售出品请求一律提交给请求系统（优先仓库/工匠），
         // 商队不再自产递归；请求无人能完成时由模块把主请求下放。
         try
         {
-            // 需求（售出品请求机制）：把请求的最小值设为“至少满足一次交易”的量——
-            // 单次交易成本减去小屋已有数量；例如需求 2 个书架共 18 绿宝石、
             // 小屋已有 3，则请求 6-15 个（3+6=9 满足一次交易，3+15=18 满足全部交易）。
             final int singleCost = singleTradeCost(item);
-            // 需求（机制更改）：已有量统计小屋存储 + 领袖/成员物品栏。
             final int alreadyHave = countInHut(item) + countInInventory(item);
             final int minCount = Math.max(1, singleCost - alreadyHave);
             final int maxCount = Math.max(minCount, totalMissing);
             final IToken<?> token = manager.createAndAssignRequest(building.getRequester(),
                 new com.minecolonies.api.colony.requestsystem.requestable.Stack(item.copyWithCount(1), maxCount, minCount));
             trackedRequests.put(item.getItem(), token);
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: 创建售出品请求 {} x{}..{}（总缺口 {}，已有 {}）",
-                item.getHoverName().getString(), minCount, maxCount, totalMissing, alreadyHave);
-            // 需求（取货机制确认）：请求创建时输出调试信息，便于确认取货链路是否工作。
-            debugLog("com.caravan.debug.action.request",
-                item.getHoverName().getString(), totalMissing);
         }
         catch (final Exception ignored)
         {
-            // 请求失败不阻塞备货流程（失败原因见日志/调试输出）。
-            debugLog("com.caravan.debug.action.request_failed",
-                item.getHoverName().getString(), totalMissing);
+            // 请求失败不阻塞备货流程。
         }
     }
 
-    /** 需求（售出品请求机制）：行程中该物品的“单次交易成本”最小值。 */
     private int singleTradeCost(final ItemStack item)
     {
         int min = Integer.MAX_VALUE;
@@ -2272,7 +2017,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求3（机制修正）：每个游戏日白天开始时做一次检查——
      * 只有“所有将进行的交易售出品均已齐备”时才跳过等待直接出发；
      * 仅部分售出品送达时保持正常 400 刻等待倒计时（任意一项满足 → 进入等待；
      * 等待期间全部满足 → 立即出发；否则等待结束出发，且需满足上午时间限制）。
@@ -2285,7 +2029,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             return;
         }
         lastDailyCheckDay = day;
-        // 需求3：只在出发时间窗（1000 刻后）内、且全部售出品齐备时才跳过等待。
         if (isDepartureTime() && allTradeSatisfied())
         {
             cancelMissingRequests();
@@ -2293,7 +2036,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 本次行程（未完成订单）对该物品的总需求量。 */
     private int totalNeededFor(final ItemStack cost)
     {
         int total = 0;
@@ -2329,19 +2071,14 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
 
     /**
      * 在目标工作方块旁停留 80 游戏刻后完成当前交易，然后继续下一个目标。
-     * 需求：智力每 10 级降低 5% 的单笔交易延迟（最低保留 50%，即 40 刻）。
      */
     private IAIState tradeAtWorkstation()
     {
-        // 需求（文本显示）：到达交易目标等待交易 → 展示“交易中”。
         job.setDisplayPhase(JobCaravanLeader.AwayPhase.TRADING);
         if (currentTrade == null)
         {
             return CaravanState.DEPART;
         }
-
-        // 需求：交易开始时发送一次汇总消息（与X名村民进行Y项交易），不再逐笔刷屏。
-        sendTradeSummaryOnce();
 
         tradeWait += STATE_TICK;
         if (tradeWait < tradeDelayTicks())
@@ -2354,60 +2091,13 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return CaravanState.DEPART;
     }
 
-    /** 需求：每个行程只发送一次“与X名村民进行Y项交易”的汇总消息。 */
-    private void sendTradeSummaryOnce()
-    {
-        if (tradeSummarySent)
-        {
-            return;
-        }
-        tradeSummarySent = true;
-        final boolean away = job.isAway();
-        final BlockPos center = away
-            ? job.getAwayPos()
-            : (currentTrade != null ? currentTrade.trade().villagePos() : null);
-        if (center == null)
-        {
-            return;
-        }
-        // 需求（debug改动）：殖民地加载范围内交易时只统计“当前交易目标”的交易——
-        // X 恒为 1（当前村民），Y 为该工作方块位置的交易数量（含副本）；
-        // 模拟交易（消失中）仍按 100 格打包统计。
-        final long radiusSq = (long) JobCaravanLeader.TRADE_PACK_RADIUS * JobCaravanLeader.TRADE_PACK_RADIUS;
-        final java.util.Set<java.util.UUID> villagers = new java.util.HashSet<>();
-        int total = 0;
-        for (final TripTrade offer : job.getTrip())
-        {
-            if (offer.status() != TripStatus.PENDING)
-            {
-                continue;
-            }
-            if (away)
-            {
-                if (offer.trade().villagePos().distSqr(center) > radiusSq)
-                {
-                    continue;
-                }
-            }
-            else if (!offer.trade().villagePos().equals(center))
-            {
-                continue;
-            }
-            total++;
-            if (offer.villagerId() != null)
-            {
-                villagers.add(offer.villagerId());
-            }
-        }
-        debugLog("com.caravan.debug.action.trade_summary", away ? villagers.size() : 1, total);
-    }
     private int tradeDelayTicks()
     {
         return job.tradeDelayTicks();
     }
 
     /**
-     * 确认并完成一笔交易（需求3）：
+     * 确认并完成一笔交易：
      * 背包持有对应交易品 → 支付成本、生成成果并标记【已完成】；
      * 背包缺失交易品 → 不进行交易，标记【失败】。
      * 修复：该交易的全部副本均已结算（无论成功或失败）时，【单次】转为【禁用】，
@@ -2427,7 +2117,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         if (hasAllCosts)
         {
             payCosts(offer.trade().costs());
-            // 需求：建筑统计——售出（成本）与获得（成果）物品数量。
             trackTradeStats(offer);
             if (!offer.trade().result().isEmpty())
             {
@@ -2437,7 +2126,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 // 避免重复入包。
                 if (!job.isAway())
                 {
-                    // 需求：领袖背包放不下时，成果溢出放入商队成员背包。
                     ItemStack remaining = insertIntoInventory(worker.getInventoryCitizen(), result);
                     for (final AbstractEntityCitizen member : caravanMembers())
                     {
@@ -2464,7 +2152,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             {
                 module.markCompleted(offer.offerIndex());
             }
-            // 需求3（可行性）：交易成功时为村民授予经验并升级（村民实体已加载时）。
             if (hasAllCosts)
             {
                 grantVillagerXp(module, offer);
@@ -2473,7 +2160,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求：建筑统计模块——按“单个物品”分别统计售出（支付的成本）与获得（成果）数量。
      * 使用 StatsUtil.trackStatByStack：统计键格式为 "类别;物品名"，
      * 统计窗口会把它渲染为“类别翻译 + 数量 + 物品名翻译”。
      */
@@ -2490,7 +2176,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求3：像玩家交易一样为村民授予经验并使其升级。
      * <ul>
      *   <li>村民实体已加载：立即应用经验/升级，并按原版交易池生成新等级的交易，
      *       随后重新记录到小屋 → GUI 显示新增交易；</li>
@@ -2500,7 +2185,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
      */
     private void grantVillagerXp(final CaravanTradeModule module, final TripTrade offer)
     {
-        // 需求2（修复）：村民 UUID 在行程规划时已写入 TripTrade，
         // 不再依赖模块索引解析（避免重录后索引偏移导致经验发放到错误村民）。
         if (offer.villagerId() == null)
         {
@@ -2525,7 +2209,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     private int countInInventory(final ItemStack cost)
     {
         int count = 0;
-        // 需求：消失期间，本次模拟交易成果（job.getResults()）视为虚拟背包——
         // 后置交易可直接消耗前置交易产出的物品。
         if (job.isAway())
         {
@@ -2537,7 +2220,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 }
             }
         }
-        // 需求：商队成员物品栏视为领袖的扩展背包——统计时一并计入。
         for (final InventoryCitizen inventory : allCaravanInventories())
         {
             for (int slot = 0; slot < inventory.getSlots(); slot++)
@@ -2552,7 +2234,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return count;
     }
 
-    /** 需求：领袖 + 所有在编商队成员的物品栏（成员实体未加载时自动跳过）。 */
     private List<InventoryCitizen> allCaravanInventories()
     {
         final List<InventoryCitizen> inventories = new ArrayList<>();
@@ -2564,7 +2245,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return inventories;
     }
 
-    /** 需求：商队小屋中所有已雇佣且在线的商队成员实体（生病的成员除外——不参与商队出行）。 */
     private List<AbstractEntityCitizen> caravanMembers()
     {
         final List<AbstractEntityCitizen> members = new ArrayList<>();
@@ -2576,7 +2256,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             }
             for (final ICitizenData data : module.getAssignedCitizen())
             {
-                // 需求（疾病）：生病的商队成员物品栏不计入商队物品栏，且不跟随领袖。
                 if (data.getCitizenDiseaseHandler().isSick())
                 {
                     continue;
@@ -2587,7 +2266,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         return members;
     }
 
-    /** 需求：领袖或任意商队成员背包有空间即可继续工作（成员 = 扩展背包）。 */
     private boolean hasAnyCaravanSpace()
     {
         for (final InventoryCitizen inventory : allCaravanInventories())
@@ -2606,7 +2284,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（机制更改）：出发前一次性从小屋存储提取本次行程所需的全部交易品——
      * 领袖背包放不下的物品转入商队成员物品栏；仍放不下的保留在小屋存储。
      * 提取完成后由 pruneTripToSatisfiable 按真实物品栏计算可行的交易。
      */
@@ -2617,7 +2294,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         {
             return;
         }
-        // 需求（帐篷提取修复）：出发前按差额把商队帐篷从小屋装入领袖/成员背包，
         // 与交易品一样要求先到达小屋方块附近。
         extractTentsFromHut();
         final IItemHandler hut = building.getItemHandlerCap((Direction) null);
@@ -2625,7 +2301,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         {
             return;
         }
-        // 按物品种类聚合本次行程的总需求量，逐种提取。
         final Map<com.minecolonies.api.crafting.ItemStorage, Integer> totalDemand = new HashMap<>();
         for (final TripTrade offer : job.getTrip())
         {
@@ -2674,7 +2349,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求3（非递归重构）：出发前把行程修剪为“当前可执行”的交易——
      * 按领袖+成员物品栏中的真实售出品数量计算每个交易可行的副本数：
      * 同一售出品被多笔交易共享时按行程顺序贪心分配（先到先得）；
      * 超出可行副本数的交易从本次行程移除。行程的【日志】与每个交易点的
@@ -2759,7 +2433,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     {
         worker.getNavigation().stop();
 
-        // 需求（多段模拟）：首段去程距离 = 当前位置到最近剩余目标的距离；
         // 之后每一段由 job.afterTradingSettled() 依次推进到下一个最近目标。
         final JobCaravanLeader.TripTrade nearest = nearestTripTrade();
         final int firstDistance = nearest != null
@@ -2782,13 +2455,12 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         job.vanish(firstDistance, worker.blockPosition());
         worker.setInvisible(true);
         setSimulationInvulnerable(true);
-        // 需求（成员同步·修复掉队）：领袖消失时直接把全部已加载成员传送到消失点并
         // 一并隐形——此前成员需自行寻路到消失点，路径受阻/进食/寻路失败时
         // 单个成员会掉队（且回归传送只处理已隐形成员，掉队者被跳过）。
         syncMembersTo(worker.blockPosition(), true);
     }
 
-    /** 需求（保护机制）：模拟旅行（隐形）期间无敌并清空威胁表——
+    /**
      *  防止 mob 在商队消失/模拟阶段攻击商队人员。 */
     private void setSimulationInvulnerable(final boolean invulnerable)
     {
@@ -2808,7 +2480,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 需求（成员同步）：把全部已加载成员传送到指定位置并统一设置隐形/无敌状态。 */
     private void syncMembersTo(final BlockPos pos, final boolean invisible)
     {
         for (final AbstractEntityCitizen member : caravanMembers())
@@ -2837,7 +2508,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 消失期间（需求：多段模拟）：阶段流 去程 → 交易中 →（仍有剩余交易 ? 去程 : 回程）。
+     * 消失期间阶段流：去程 → 交易中 →（仍有剩余交易 ? 去程 : 回程）。
      * <ul>
      *   <li>去程：距离每 20 刻减 10 格；归零 → 进入【交易中】；</li>
      *   <li>交易中：停留 本段 100 格内可执行交易数 × 每笔延迟；结束时结算本段交易的
@@ -2848,7 +2519,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     private IAIState stayAway()
     {
         updateLeaderStatus(CaravanStatus.TRADING);
-        // 修复bug：AWAY 模拟期间保持隐形——实体重载后 invisible 标志不持久化，
         // 丢失后商队领袖会被 minecolonies 睡眠机制在夜间接管（job AI 暂停，
         // 导致夜间不扎营、清晨才补 CAMP）。穿越殖民地（步行现身）期间除外。
         if (!job.isWalkingThroughColony() && !worker.isInvisible())
@@ -2856,8 +2526,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             worker.setInvisible(true);
             setSimulationInvulnerable(true);
         }
-        // 每日扎营总结（消耗统计）。
-        accumulateNightIllness();
         // 食物：商队人员饱食度不足时食用菜单选定的食物。
         feedCaravanFromSupplies();
 
@@ -2879,26 +2547,21 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             }
         }
 
-        // 需求（穿越殖民地）：模拟位置到达入口 A 后，实体现身并步行至出口 B，
         // 期间冻结距离倒数；到达后再次消失并继续模拟。
         if (job.isWalkingThroughColony())
         {
             return walkThroughColony();
         }
-        // 需求（商队护卫）：护卫卫兵战斗时领袖停等——战斗结束后卫兵回到
         // 领袖 6 格范围内才继续移动（模拟旅行中的隐形卫兵不参与判定）。
         if (guardsBlockMovement())
         {
-            // 需求（bug 修复）：AWAY 阶段取消旧寻路目标，防止隐形实体沿旧路径移动。
             worker.getNavigation().stop();
             return CaravanState.AWAY;
         }
         final JobCaravanLeader.AwayPhase before = job.getAwayPhase();
         if (job.tickAway())
         {
-            // 需求（回程机制）：在“小屋与最后目标连线与殖民地边界交点”处重新出现，
             // 而非旧的消失位置；随行的商队成员一并传送到该处。
-            // 修复bug：reappear() 会清空 awayReturnPos，必须先读取再重置。
             final BlockPos returnPos = job.getAwayReturnPos();
             job.reappear();
             if (returnPos != null)
@@ -2908,15 +2571,12 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     worker.blockPosition().getY(),
                     returnPos.getZ() + 0.5);
                 worker.getNavigation().stop();
-                // 需求（成员同步·修复掉队）：回归传送覆盖全部已加载成员
                 // （不再只传送已隐形成员，掉队者也会被拉回）。
                 syncMembersTo(returnPos, false);
             }
-            // 需求（回归机制）：解除隐形后延 1 殖民地刻——先保持隐形完成
             // 回程结算/传送，由 RETURN 状态的第一次 tick 再解除。
             revealDelayTicks = STATE_TICK;
             restoreSuppliesAndResults();
-            // 需求（bug修复）：重新出现时立即把建筑标记为脏，让客户端尽快同步
             // “消失状态=false”，使旅行地图标记在出现瞬间就消失（而非到达小屋后）。
             building.markDirty();
             return CaravanState.RETURN;
@@ -2927,8 +2587,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         {
             // 到达目标区域：进入“交易中”阶段（停留时间已在 job.tickAway 内计算）。
             job.setCampStatus(JobCaravanLeader.CampStatus.TRADING);
-            // 需求：交易开始时发送一次汇总消息（与X名村民进行Y项交易）。
-            sendTradeSummaryOnce();
         }
         else if (before == JobCaravanLeader.AwayPhase.TRADING
             && after == JobCaravanLeader.AwayPhase.RETURNING)
@@ -2937,28 +2595,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             // 再由 job.afterTradingSettled() 决定下一段去程或回程。
             settlePendingTrades();
             job.afterTradingSettled();
-            // 第 4 条：交易倒计时结束后，单独做一次 1-3 条的检查（按当前时间
-            // 与物品重新决定状态，不等待下一殖民地刻）。
+            // 交易倒计时结束后单独做一次状态检查（不等待下一殖民地刻）。
             decideCampStatus();
-            if (job.getAwayPhase() == JobCaravanLeader.AwayPhase.OUTBOUND)
-            {
-                // 需求：仍有剩余交易——提示下一个目的地，并重置汇总标记，
-                // 到达下一目的地后再发送“与X名村民进行Y项交易”。
-                final JobCaravanLeader.TripTrade next = job.nearestPendingTarget(job.getAwayPos());
-                if (next != null)
-                {
-                    debugLog("com.caravan.debug.action.next_destination",
-                        next.trade().villagePos().getX(),
-                        next.trade().villagePos().getY(),
-                        next.trade().villagePos().getZ());
-                }
-                tradeSummarySent = false;
-            }
-            else
-            {
-                // 需求：全部交易完成——提示“返回”。
-                debugLog("com.caravan.debug.action.returning");
-            }
         }
         // 距离每 20 刻变化一次，标记建筑脏以便日志页签尽快同步。
         building.markDirty();
@@ -2966,7 +2604,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（穿越殖民地）：实体现身于入口 A，寻路至出口 B，到达后再次消失。
      * <ul>
      *   <li>首次进入：传送到入口 A 并取消隐形；</li>
      *   <li>步行中：寻路到出口 B；</li>
@@ -2991,8 +2628,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     entry.getX() + 0.5,
                     worker.blockPosition().getY(),
                     entry.getZ() + 0.5);
-                // 需求（穿越殖民地）：整个商队一同在入口 A 重新出现并步行至出口 B。
-                // 需求（成员同步·修复掉队）：入口现身同样覆盖全部已加载成员。
                 syncMembersTo(entry, false);
             }
             worker.getNavigation().stop();
@@ -3001,7 +2636,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             setSimulationInvulnerable(false);
             return CaravanState.AWAY;
         }
-        // 需求（防卡死）：步行超时后强制继续模拟，防止寻路到不可达的出口点
         // 导致全员卡在殖民地边界、GUI 去程距离停止减少。
         colonyWalkTicks += STATE_TICK;
         if (colonyWalkTicks < COLONY_WALK_TIMEOUT && !walkToUnSafePos(exit))
@@ -3014,7 +2648,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（穿越殖民地）：与 vanish() 相同但不重置行程/距离——
      * 仅保存随身补给并隐形，随后调用 job.finishColonyWalk() 续接去程倒数。
      */
     private void revanish()
@@ -3032,7 +2665,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
         worker.setInvisible(true);
         setSimulationInvulnerable(true);
-        // 需求（成员同步·修复掉队）：穿越出口 B 重新消失时一并同步成员。
         syncMembersTo(worker.blockPosition(), true);
         job.finishColonyWalk();
     }
@@ -3049,7 +2681,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             {
                 continue;
             }
-            // 需求（多段模拟）：只结算本段 100 格以内的交易，其余保留到下一段。
             if (stop != null && offer.trade().villagePos().distSqr(stop) > radiusSq)
             {
                 continue;
@@ -3057,7 +2688,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             completeTrade(offer);
             settled++;
         }
-        // 需求（经验）：参照 minecolonies 快递员——送达物品后获得经验
         // （EntityAIWorkDeliveryman 每次送达动作结算 addExperience(1.5)）。
         // 商队每完成一笔交易，领袖与每名（健康）商队成员获得对应经验奖励，
         // 由 CaravanExperienceHandler 按自定义属性比例分配（敏捷100%/智力50%等）。
@@ -3067,7 +2697,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 需求（商队护卫）：是否存在需要等待的护卫卫兵（战斗中或战斗后未归队）。 */
     private boolean guardsBlockMovement()
     {
         try
@@ -3091,8 +2720,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             if (anyCombat)
             {
                 guardsWereInCombat = true;
-                com.example.caravan.CaravanMod.LOGGER.info(
-                    "Caravan: 商队领袖等待——护卫卫兵战斗中（ATTACKING）");
                 return true;
             }
             if (guardsWereInCombat)
@@ -3106,9 +2733,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 {
                     if (!guard.isInvisible() && guard.distanceToSqr(worker) > 36)
                     {
-                        com.example.caravan.CaravanMod.LOGGER.info(
-                            "Caravan: 商队领袖等待——护卫卫兵归队中（距离 {}）",
-                            (int) Math.sqrt(guard.distanceToSqr(worker)));
                         return true; // 战斗结束，等待卫兵回到 6 格内。
                     }
                 }
@@ -3145,7 +2769,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
     }
 
-    /** 需求（商队护卫·bug 修复）：等待卫兵战斗时原地活动——
+    /**
      *  取消当前寻路目标，改为附近 3 格内的随机点，避免领袖继续沿旧目标移动。 */
     private void waitForGuardsIdle()
     {
@@ -3157,7 +2781,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         walkToUnSafePos(waitTarget);
     }
 
-    /** 需求（经验）：商队完成交易后结算经验奖励（领袖 + 健康成员）。 */
     private void grantTradeExperience(final int trades)
     {
         final double xp = 1.5D * trades;
@@ -3168,9 +2791,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             {
                 member.getCitizenExperienceHandler().addExperience(xp);
             }
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: [商队{}] 结算交易经验 {} XP（{} 笔交易，领袖 + {} 名成员）",
-                caravanIndex(), xp, trades, caravanMembers().size());
         }
         catch (final Exception ignored)
         {
@@ -3180,7 +2800,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
 
     /**
      * 若消失期间背包被清空则恢复保存的补给，并把交易成果放入背包。
-     * 修复bug：如果本次行程已结算过交易（支付了成本），绝不能把消失前保存的
      * 补给整体倒回——那会让“本应消耗掉的交易品”在回程时重新回到物品栏。
      * 只有“背包为空且一笔交易都未结算”时才恢复补给（此时背包为空只可能是
      * 实体被重置导致，恢复补给才安全）。
@@ -3209,7 +2828,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         }
         for (final ItemStack result : job.getResults())
         {
-            // 需求：成果放不下时溢出给商队成员。
             ItemStack remaining = insertIntoInventory(inventory, result);
             for (final AbstractEntityCitizen member : caravanMembers())
             {
@@ -3229,7 +2847,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     private IAIState returnFromTrip()
     {
         updateLeaderStatus(CaravanStatus.TRADING);
-        // 需求（回归机制）：回归后第 1 个殖民地刻解除领袖隐形（倒计时由回归分支设置）。
         if (revealDelayTicks > 0)
         {
             revealDelayTicks -= STATE_TICK;
@@ -3239,9 +2856,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 setSimulationInvulnerable(false);
             }
         }
-        // 需求（文本显示）：向小屋移动 → 展示“返回中”。
         job.setDisplayPhase(JobCaravanLeader.AwayPhase.RETURNING);
-        // 需求（商队护卫）：回归步行阶段同样等待护卫卫兵结束战斗并归队。
         if (guardsBlockMovement())
         {
             waitForGuardsIdle();
@@ -3252,23 +2867,17 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             return CaravanState.RETURN;
         }
 
-        // 需求（机制更改）：归来时把领袖与全部成员的【整个物品栏】清空到小屋存储
         // （参考快递员在仓库卸货：逐槽转移，放不下的保留原处），
-        // 之后备货阶段不再从物品栏计算需求。
         dumpAllCaravanInventoriesIntoHut();
-        // 需求（疾病）：返程后统一结算无帐篷过夜的患病概率（返回患病人数）。
         final int sickCount = settleNightIllness();
-        // 需求（通报）：商队回归时通报本次行程统计。
         sendTripSummary(sickCount);
         job.getResults().clear();
         final CaravanTradeModule tradeModule = building.getFirstModuleOccurance(CaravanTradeModule.class);
-        // 需求（非递归重构）：每次交易归来后，对“已下放”的主请求重新检查——
         // 有对应【按需】交易则重新接入（创建售出物子请求），否则保持下放。
         if (tradeModule != null)
         {
             tradeModule.recheckReleasedRequestsAfterReturn();
         }
-        // 需求（取货保护）：若仍有未完成的按需请求缺口/待送达任务，不创建“取货送仓库”
         // 请求——否则快递员会把小屋里的按需成果取走，导致小屋目标物永远凑不齐。
         if (tradeModule == null || !tradeModule.hasPendingOnDemandRequests())
         {
@@ -3289,7 +2898,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             return CaravanState.DEPART;
         }
         job.finishTrip();
-        // 需求（bug 修复）：行程结束，通知模块恢复售出物补建/健康检查。
         final CaravanTradeModule finishModule = building.getFirstModuleOccurance(CaravanTradeModule.class);
         if (finishModule != null)
         {
@@ -3338,7 +2946,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（真实领地）：计算朝向目标、位于殖民地真实边界上的点——
      * 从殖民地中心沿目标方向逐步向外扫描，返回最后一个仍属于殖民地领地的位置。
      * 领地为区块归属集合，边界变化时此处每次按需重新计算。
      */
@@ -3374,7 +2981,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     /** 从背包扣除交易成本（模拟支付）。 */
     private void payCosts(final List<ItemStack> costs)
     {
-        // 需求：消失期间先从模拟成果中抵扣（产物被后续交易消耗），
         // 再扣实体背包；避免“已消耗的绿宝石在归来时重新回到背包”。
         if (job.isAway())
         {
@@ -3398,7 +3004,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 }
             }
         }
-        // 需求：支付时先扣领袖背包，不足部分从商队成员背包扣除。
         final List<InventoryCitizen> inventories = allCaravanInventories();
         for (final ItemStack cost : costs)
         {
@@ -3421,13 +3026,11 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * 需求（机制更改）：归来时把领袖与全部商队成员的【整个物品栏】清空到小屋存储——
      * 参考 minecolonies 快递员在仓库卸货（逐槽 transferItemStackIntoNextFreeSlotInItemHandler），
      * 小屋放不下的物品保留在原物品栏（不丢失）。
      */
     private void dumpAllCaravanInventoriesIntoHut()
     {
-        // 需求2：只有在小屋方块附近才允许向小屋存储中放物。
         if (!canAccessHutStorage())
         {
             return;
@@ -3438,7 +3041,6 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             return;
         }
 
-        // 需求（bug 修复）：领袖与所有商队成员物品栏的【全部物品】转入小屋存储，
         // 但【商队帐篷】保留在背包中（帐篷是出行装备，不应被当作交易成果卸下）。
         for (final InventoryCitizen inventory : allCaravanInventories())
         {

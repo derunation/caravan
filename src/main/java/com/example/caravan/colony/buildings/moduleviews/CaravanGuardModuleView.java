@@ -11,7 +11,6 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 需求（商队护卫）：【护卫】页客户端视图——商队护卫模式卫兵塔列表。 */
 public class CaravanGuardModuleView extends AbstractBuildingModuleView
 {
     /** 一条护卫卫兵信息（名字/所属卫兵塔/塔是否已指派）。 */
@@ -53,7 +52,6 @@ public class CaravanGuardModuleView extends AbstractBuildingModuleView
         return Component.translatable("com.caravan.gui.guard");
     }
 
-    /** 需求（GUI）：标签页图标使用【矿井】-【守卫指派】页图标（sword.png）。 */
     @Override
     public ResourceLocation getIconResourceLocation()
     {

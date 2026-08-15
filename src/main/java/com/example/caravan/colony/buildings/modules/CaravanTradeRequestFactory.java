@@ -13,7 +13,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * 需求（请求链可视化）：{@link CaravanTradeRequest} 的工厂——
  * 复用 minecolonies 的 StandardRequestFactories 序列化助手，保证请求可持久化/同步。
  */
 public class CaravanTradeRequestFactory implements IRequestFactory<CaravanTradeRequestable, CaravanTradeRequest>

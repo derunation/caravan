@@ -13,7 +13,6 @@ import net.minecraft.core.BlockPos;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 需求（商队护卫）：商队小屋与卫兵 AI（mixin）共用的护卫状态查询工具。 */
 public final class CaravanGuardHelper
 {
     /** 卫兵塔【工作模式】新增的“商队护卫”选项键（GuardTaskSettingMixin 追加）。 */

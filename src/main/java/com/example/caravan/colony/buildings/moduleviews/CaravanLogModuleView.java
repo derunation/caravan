@@ -20,49 +20,34 @@ import java.util.List;
 public class CaravanLogModuleView extends AbstractBuildingModuleView
 {
     /** 一次行程中的单笔交易摘要（日志展示用，按同一交易聚合）。 */
-    /** 需求（备货供应比例）：costs 中每个交易成本的“已有供应量”（截断到需要量）。 */
     public record LogTradeEntry(ItemStack result, List<ItemStack> costs, List<Integer> supplied, int completed, int total)
     {
     }
 
     private boolean hasLeader;
     private boolean away;
-    /** 需求（扎营）：模拟旅行中是否处于原地休息（扎营）状态。 */
     private boolean resting;
-    /** 需求（模拟旅行状态机）：商队当前模拟状态（服务端权威，旅行地图/日志显示）。 */
     private JobCaravanLeader.CampStatus campStatus = JobCaravanLeader.CampStatus.TRAVEL;
-    /** 需求（旅行地图）：当前游戏时间是否处于殖民地睡眠时间窗口
+    /**
      *  （服务端直接按时间判定，不依赖 AI 是否 tick 到扎营分支）。 */
     private boolean sleepTimeNow;
     private JobCaravanLeader.CaravanStatus status = JobCaravanLeader.CaravanStatus.WAITING_ITEMS;
     private JobCaravanLeader.AwayPhase awayPhase = JobCaravanLeader.AwayPhase.OUTBOUND;
     private int awayDistance;
     private int awayTradeTicks;
-    /** 需求（旅行地图联动）：当前段初始距离（计算移动进度用）。 */
     private int awayMaxDistance;
-    /** 需求（旅行地图联动）：消失时的出发点。 */
     private BlockPos awayOriginPos;
-    /** 需求（旅行地图联动）：当前段的起点与终点（插值移动用）。 */
     private BlockPos awayLegStart;
     private BlockPos awayLegEnd;
-    /** 需求（旅行地图联动）：商队领袖的 NPC 贴图路径（用于头像图标）。 */
     private String leaderTexture = "";
-    /** 需求（旅行地图联动）：剩余路线停靠点（出发点 + 按访问顺序排列的剩余目标）。 */
     private final List<BlockPos> awayRoute = new ArrayList<>();
     private final List<LogTradeEntry> trades = new ArrayList<>();
-    /** 需求（旅行地图联动）：下一个目的地将要进行的第一笔交易的结果物品。 */
     private ItemStack nextTradeIcon = ItemStack.EMPTY;
-    /** 需求（旅行地图联动）：领袖实体的当前实际位置（未消失时有效，可为 null）。 */
     private BlockPos leaderPos;
-    /** 需求（穿越殖民地）：商队是否正在穿越殖民地（实体现身步行中）。 */
     private boolean walkingThroughColony;
-    /** 需求（消耗品）：商队携带的每顶商队帐篷（独立栈，各含耐久信息；无则空列表）。 */
     private final List<ItemStack> tentStacks = new ArrayList<>();
-    /** 需求（消耗品）：商队携带的菜单食物堆叠（带数量角标；无则空列表）。 */
     private final List<ItemStack> foodStacks = new ArrayList<>();
-    /** 需求（消耗品）：商队携带的火把堆叠（带数量角标；无则空列表）。 */
     private final List<ItemStack> torchStacks = new ArrayList<>();
-    /** 需求（饥饿）：商队中饱食度为 0 的人数（客户端显示饱食度图标用）。 */
     private int hungryCount;
 
     @Override
@@ -92,7 +77,6 @@ public class CaravanLogModuleView extends AbstractBuildingModuleView
         status = statusOrdinal >= 0 && statusOrdinal < JobCaravanLeader.CaravanStatus.values().length
             ? JobCaravanLeader.CaravanStatus.values()[statusOrdinal]
             : JobCaravanLeader.CaravanStatus.WAITING_ITEMS;
-        // 需求（文本显示）：展示相位（未消失时也有效），用于 旅行中/交易中/返回中 文本。
         final int phaseOrdinal = buffer.readVarInt();
         awayPhase = phaseOrdinal >= 0 && phaseOrdinal < JobCaravanLeader.AwayPhase.values().length
             ? JobCaravanLeader.AwayPhase.values()[phaseOrdinal]
@@ -206,7 +190,6 @@ public class CaravanLogModuleView extends AbstractBuildingModuleView
     @Override
     public ResourceLocation getIconResourceLocation()
     {
-        // 需求：使用【快递员小屋】-【任务】标签页图标（RequestTaskModuleView 的 info.png）。
         return ResourceLocation.fromNamespaceAndPath("minecolonies", "textures/gui/modules/info.png");
     }
 
@@ -220,19 +203,16 @@ public class CaravanLogModuleView extends AbstractBuildingModuleView
         return away;
     }
 
-    /** 需求（扎营）：商队是否处于模拟旅行中的原地休息（扎营）状态。 */
     public boolean isResting()
     {
         return resting;
     }
 
-    /** 需求（模拟旅行状态机）：商队当前模拟状态（旅行中/夜行中/扎营中/露宿中/交易中）。 */
     public JobCaravanLeader.CampStatus getCampStatus()
     {
         return campStatus;
     }
 
-    /** 需求（旅行地图）：当前是否处于殖民地睡眠时间窗口（服务端按当前时间判定）。 */
     public boolean isSleepTimeNow()
     {
         return sleepTimeNow;
@@ -291,31 +271,26 @@ public class CaravanLogModuleView extends AbstractBuildingModuleView
         return leaderPos;
     }
 
-    /** 需求（穿越殖民地）：商队正在穿越殖民地（实体现身步行中）。 */
     public boolean isWalkingThroughColony()
     {
         return walkingThroughColony;
     }
 
-    /** 需求（消耗品）：商队携带的每顶商队帐篷（无则空列表）。 */
     public List<ItemStack> getTentStacks()
     {
         return tentStacks;
     }
 
-    /** 需求（消耗品）：商队携带的菜单食物堆叠（无则空列表）。 */
     public List<ItemStack> getFoodStacks()
     {
         return foodStacks;
     }
 
-    /** 需求（消耗品）：商队携带的火把堆叠（无则空列表）。 */
     public List<ItemStack> getTorchStacks()
     {
         return torchStacks;
     }
 
-    /** 需求（饥饿）：商队中饱食度为 0（饥饿）的人数。 */
     public int getHungryCount()
     {
         return hungryCount;

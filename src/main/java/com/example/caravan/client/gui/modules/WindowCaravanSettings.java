@@ -28,7 +28,6 @@ public class WindowCaravanSettings extends AbstractModuleWindow<CaravanSettingsM
     public void onOpened()
     {
         super.onOpened();
-        // 需求1：每次打开小屋 GUI 时请求服务器刷新建筑视图。
         new CaravanRefreshBuildingMessage(buildingView).sendToServer();
     }
 
@@ -36,7 +35,6 @@ public class WindowCaravanSettings extends AbstractModuleWindow<CaravanSettingsM
     public void onClosed()
     {
         super.onClosed();
-        // 需求2：关闭 GUI 时若领袖在等待物品，则清空其请求重新备货。
         new CaravanCloseGuiMessage(buildingView).sendToServer();
     }
 

@@ -43,7 +43,6 @@ public class CaravanRefreshBuildingMessage extends AbstractBuildingServerMessage
         final IColony colony,
         final BuildingCaravanLeader building)
     {
-        // 需求：打开 GUI 时同步触发 Waystone 名称的分批刷新（每 20 刻一批）。
         final CaravanTradeModule module = building.getFirstModuleOccurance(CaravanTradeModule.class);
         if (module != null)
         {

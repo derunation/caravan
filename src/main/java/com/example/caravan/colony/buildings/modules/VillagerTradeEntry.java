@@ -31,12 +31,9 @@ public record VillagerTradeEntry(
     List<TradeOfferData> offers,
     int xpEarned,
     int pendingXp,
-    /** 需求：目标位置 100 格内最近的 Waystone UUID（无则 null，GUI 检查激活后显示）。 */
     UUID waystoneUid,
-    /** 需求：目标位置 100 格内最近的 Waystone 名称（无则 null，GUI 改显距离）。 */
     String waystoneName)
 {
-    /** 需求：Waystone 未命名时的占位标记（GUI 本地化显示“传送石碑/Waystone”）。 */
     public static final String WAYSTONE_UNNAMED = "@waystone";
     private static final String TAG_ID = "id";
     private static final String TAG_PROFESSION = "profession";
@@ -83,7 +80,6 @@ public record VillagerTradeEntry(
             waystone != null ? waystone.waystoneName() : null);
     }
 
-    /** 需求：重新计算某工作方块位置对应的 Waystone 名称（周期性刷新用）。 */
     public static WaystoneHelper.WaystoneInfo refreshWaystoneInfo(final ServerLevel level, final BlockPos workstationPos)
     {
         return WaystoneHelper.findWaystoneNear(level, workstationPos);

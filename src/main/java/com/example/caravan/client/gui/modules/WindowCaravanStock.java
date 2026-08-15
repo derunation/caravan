@@ -11,16 +11,12 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * 商队小屋【设置】标签页：设置最小绿宝石库存（默认 4 组，1 组 = 64 个）。
- * 需求：玩家输入数值后，切换页面/关闭 GUI 时自动保存（无保存按钮）。
  */
 public class WindowCaravanStock extends AbstractModuleWindow<CaravanStockModuleView>
 {
     private static final String INPUT_STOCK = "stockInput";
-    /** 需求（设置）：商队帐篷携带量输入框。 */
     private static final String INPUT_TENT_COUNT = "tentCountInput";
-    /** 需求（设置）：商队食物携带组数输入框。 */
     private static final String INPUT_FOOD_COUNT = "foodCountInput";
-    /** 需求（设置）：商队火把携带组数输入框。 */
     private static final String INPUT_TORCH_COUNT = "torchCountInput";
 
     public WindowCaravanStock(final IBuildingView buildingView, final CaravanStockModuleView moduleView)
@@ -58,7 +54,6 @@ public class WindowCaravanStock extends AbstractModuleWindow<CaravanStockModuleV
     public void onClosed()
     {
         super.onClosed();
-        // 需求：切换页面/关闭 GUI 时自动保存输入的最小绿宝石库存。
         if (buildingView == null)
         {
             return;

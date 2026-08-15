@@ -22,7 +22,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 
 /**
- * 商队成员 AI（需求：跟随商队领袖进行交易）。
+ * 商队成员 AI（跟随商队领袖进行交易）。
  * <ul>
  *   <li>领袖在殖民地内且未消失：保持 6 格以内的跟随距离（超出则寻路跟上）；</li>
  *   <li>领袖消失（去程/回程模拟）时：寻路到领袖的消失位置，到达后与领袖一同
@@ -39,7 +39,6 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
     private static final int HUT_RANGE_SQUARED = 100;
     /** 到达领袖消失位置（视为已消失）的判定距离平方。 */
     private static final int VANISH_RANGE_SQUARED = 9;
-    /** 需求（游荡）：小屋范围内游荡的半径（格）。 */
     private static final int WANDER_RADIUS = 5;
 
     /** 商队成员自定义状态。 */
@@ -62,7 +61,6 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
 
     /** 是否已与领袖一同消失（隐形）。 */
     private boolean memberVanished;
-    /** 需求（游荡）：游荡计时器。 */
     private int wanderTimer;
 
     public EntityAIWorkCaravanMember(final JobCaravanMember job)
@@ -82,12 +80,9 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
             new AITarget<IAIState>(MemberState.VANISHED,
                 (IStateSupplier<IAIState>) this::vanished, 20));
 
-        // 需求：商队成员属性与商队领袖一致——安装自定义经验分配处理器。
         worker.setCitizenExperienceHandler(
             new CaravanExperienceHandler(worker, worker.getCitizenExperienceHandler()));
-        // 需求：敏捷 → 移动速度（与领袖一致：每级敏捷 +0.003）。
         refreshSpeedBonus();
-        // 需求：实体重置/重载后若领袖仍在消失状态，成员保持隐形（与领袖一同消失）。
         if (isLeaderAway())
         {
             memberVanished = true;
@@ -107,7 +102,7 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
     }
 
     /** 空闲时：存在领袖才进入对应状态（未消失 → 跟随；已消失 → 前往消失位置）；
-     *  需求（疾病）：生病的商队成员不跟随商队领袖（留在殖民地，由本体 AI 管理）。 */
+     *  生病的商队成员不跟随商队领袖（留在殖民地，由本体 AI 管理）。 */
     private boolean shouldFollowLeader()
     {
         final ICitizenData data = worker.getCitizenData();
@@ -122,19 +117,16 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
     private IAIState followLeader()
     {
         final AbstractEntityCitizen leader = findLeader();
-        // 需求（穿越殖民地）：以领袖实体的可见性为准——领袖隐形（正常消失或
         // 穿越结束重新隐形）时成员前往消失；领袖可见（穿越步行中）时保持跟随，
         // 不再依赖 walking 标志，避免标志时序抖动导致成员反复消失/现身。
         if (isLeaderAway() && (leader == null || leader.isInvisible()))
         {
-            // 需求：领袖消失 → 走到领袖的消失位置，到达后一同消失。
             return MemberState.VANISH_PREP;
         }
         if (leader == null)
         {
             return AIWorkerState.IDLE;
         }
-        // 需求：备货阶段（等待物品/准备出发）成员与领袖一样在小屋待命，
         // 不跟随领袖走动（小屋方块附近即可存取存储，成员需留出空间）。
         final JobCaravanLeader leaderJob = findLeaderJob();
         if (leaderJob != null && leaderJob.getStatus() != JobCaravanLeader.CaravanStatus.TRADING)
@@ -144,13 +136,11 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
                 walkToBuilding();
                 return MemberState.FOLLOW_LEADER;
             }
-            // 需求：备货/空闲时与领袖一样在小屋范围内游荡。
             wanderNearHut();
             return AIWorkerState.IDLE;
         }
         if (worker.blockPosition().distSqr(leader.blockPosition()) > FOLLOW_DISTANCE * FOLLOW_DISTANCE)
         {
-            // 需求（成员同步·修复掉队）：超过 100 格直接传送到领袖旁，
             // 避免长时间寻路导致单个成员掉队。
             if (worker.blockPosition().distSqr(leader.blockPosition()) > 100 * 100)
             {
@@ -167,7 +157,6 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
         return AIWorkerState.IDLE;
     }
 
-    /** 需求：小屋范围内随机游荡（保持在小屋附近）。 */
     private void wanderNearHut()
     {
         if ((wanderTimer += 20) < 100)
@@ -182,7 +171,6 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
         walkToUnSafePos(target);
     }
 
-    /** 需求：寻路到领袖消失位置，到达后隐形（与领袖一同消失）。 */
     private IAIState vanishPrep()
     {
         final AbstractEntityCitizen leader = findLeader();
@@ -193,7 +181,6 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
         }
         if (worker.blockPosition().distSqr(leader.blockPosition()) > VANISH_RANGE_SQUARED)
         {
-            // 需求（成员同步·修复掉队）：超过 100 格直接传送到领袖消失点旁，
             // 而不是缓慢寻路（消失点可能远在殖民地边界外）。
             if (worker.blockPosition().distSqr(leader.blockPosition()) > 100 * 100)
             {
@@ -219,10 +206,8 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
         return MemberState.VANISHED;
     }
 
-    /** 需求：消失状态——领袖归来时一同现身，否则保持隐形。 */
     private IAIState vanished()
     {
-        // 需求（穿越殖民地）：领袖重新出现（含穿越步行中现身）时成员一同现身；
         // 以领袖实体的可见性为准，避免标志抖动导致反复消失/现身。
         final AbstractEntityCitizen leader = findLeader();
         if (!isLeaderAway() || (leader != null && !leader.isInvisible()))
@@ -279,7 +264,6 @@ public class EntityAIWorkCaravanMember extends AbstractEntityAIBasic<JobCaravanM
     /** 上次应用速度加成的敏捷等级。 */
     private int lastAgilityLevel = -1;
 
-    /** 需求：敏捷等级变化时刷新移动速度加成（与领袖/快递员一致）。 */
     private void refreshSpeedBonus()
     {
         final int agility = job.getCitizen() != null

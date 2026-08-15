@@ -27,9 +27,7 @@ public class CaravanTradeListModuleView extends AbstractBuildingModuleView
     private final List<VillagerTradeEntry> villagers = new ArrayList<>();
     private final Map<String, CaravanTradeModule.TradeMode> modes = new HashMap<>();
     private final Map<String, Integer> quantities = new HashMap<>();
-    /** 需求：村民自定义名称（UUID → 名称；无记录时显示职业）。 */
     private final Map<UUID, String> customNames = new HashMap<>();
-    /** 需求（总览）：激活交易顺序（平铺索引，空 = 默认距离顺序）。 */
     private final List<Integer> offerOrder = new ArrayList<>();
     private int maxSelection = 1;
 
@@ -56,7 +54,6 @@ public class CaravanTradeListModuleView extends AbstractBuildingModuleView
         {
             quantities.put(readSettingKey(buffer), buffer.readVarInt());
         }
-        // 需求（GUI 跳变修复）：服务器同步的“待应用”值（GUI 打开期间玩家已点击），
         // 直接覆盖 modes/quantities 显示，避免同步把旧值推回导致界面跳变；
         // 玩家退出 GUI 时服务器已把待应用值合并进正式设置并清空待应用列表。
         final int pendingModeCount = buffer.readVarInt();
@@ -111,7 +108,6 @@ public class CaravanTradeListModuleView extends AbstractBuildingModuleView
     @Override
     public ResourceLocation getIconResourceLocation()
     {
-        // 需求：使用【矿井】-【所需资源】标签页图标（BuildingResourcesModuleView 的 inventory.png）。
         return ResourceLocation.fromNamespaceAndPath("minecolonies", "textures/gui/modules/inventory.png");
     }
 
@@ -215,20 +211,17 @@ public class CaravanTradeListModuleView extends AbstractBuildingModuleView
         return resolved != null ? villagers.get(resolved[0]) : null;
     }
 
-    /** 需求（总览）：查询平铺索引对应的交易数据。 */
     public TradeOfferData getOffer(final int flatIndex)
     {
         final int[] resolved = resolveOffer(flatIndex);
         return resolved != null ? villagers.get(resolved[0]).offers().get(resolved[1]) : null;
     }
 
-    /** 需求（总览）：玩家调整后的激活交易顺序（空 = 默认距离顺序）。 */
     public List<Integer> getOfferOrder()
     {
         return offerOrder;
     }
 
-    /** 需求（总览）：所有已激活（非禁用）交易的平铺索引，按玩家调整后的顺序排列。 */
     public List<Integer> getActiveOffersInOrder()
     {
         final List<Integer> result = new ArrayList<>();
@@ -257,7 +250,6 @@ public class CaravanTradeListModuleView extends AbstractBuildingModuleView
         return result;
     }
 
-    /** 需求：查询村民的自定义名称（无则返回 null，界面显示职业）。 */
     public String getCustomName(final UUID villagerId)
     {
         return customNames.get(villagerId);

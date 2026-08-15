@@ -11,7 +11,7 @@ import com.minecolonies.core.colony.buildings.modules.WorkerBuildingModule;
 
 /**
  * 商队领袖/商队成员的自定义经验分配处理器。
- * <p>需求属性配置（与 minecolonies 默认的“主/副属性+互补/相克”分布不同，需单独实现）：</p>
+ * <p>属性配置（与 minecolonies 默认的“主/副属性+互补/相克”分布不同，需单独实现）：</p>
  * <ul>
  *   <li>敏捷：+100% XP（主属性）</li>
  *   <li>适应：+10% XP</li>

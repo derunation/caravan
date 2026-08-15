@@ -16,7 +16,6 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.List;
 
 /**
- * 需求（商队护卫）：商队小屋【护卫】页——布局/按钮样式/按钮文字参照
  * 矿井【守卫指派】页（layoutguardlist.xml：guardName + assignGuard 按钮），
  * 列出【商队护卫】模式的卫兵，分配/取消分配作用于其卫兵塔（塔级指派）。
  */

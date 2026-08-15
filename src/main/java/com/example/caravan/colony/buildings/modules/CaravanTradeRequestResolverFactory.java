@@ -11,7 +11,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 
 /**
- * 需求（请求系统接入）：{@link CaravanTradeRequestResolver} 的工厂——
  * 请求系统持久化/重建 resolver 时使用（序列化为 token + location）。
  */
 public class CaravanTradeRequestResolverFactory implements IRequestResolverFactory<CaravanTradeRequestResolver>

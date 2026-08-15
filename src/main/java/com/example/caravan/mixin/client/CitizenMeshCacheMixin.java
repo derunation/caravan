@@ -7,7 +7,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
- * 需求（EpicColonies 兼容）：EpicColonies 的 {@code CitizenMeshCache.resolveJob}
  * 会把职业完整注册名（如 {@code caravan:caravan_leader}）强制拼到
  * {@code minecolonies} 命名空间，产生非法路径
  * {@code minecolonies:caravan:caravan_leader}，在市民渲染时刷屏

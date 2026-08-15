@@ -25,25 +25,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * 需求（商队护卫）：卫兵塔卫兵 AI 的工作模式扩展——
- * 当卫兵塔【工作模式】=【商队护卫】且已被商队小屋【护卫】页选中时：
- * <ul>
- *   <li>卫兵塔被商队小屋【护卫】页选中（塔级指派）且领袖消失（去程/回程）
- *       → 跟随到领袖位置（复用 follow()，目标改为领袖）；</li>
- *   <li>商队未出发 → 驻守商队小屋（复用 guard()，驻守点改为商队小屋）；</li>
- *   <li>索敌战斗沿用卫兵自身框架。</li>
- * </ul>
- */
 @Mixin(AbstractEntityAIGuard.class)
 public abstract class AbstractEntityAIGuardMixin
 {
-    /** 需求（诊断）：商队护卫模式诊断是否已输出过（防刷屏）。 */
-    private static boolean caravan$diagnosed;
-    /** 需求（诊断）：最近一次输出跟随/驻守诊断的时刻（节流 200 刻）。 */
-    private static long caravan$lastActionLog;
-    /** 需求（武器请求）：当前 AI 对应的卫兵实体（由 redirect 处理器缓存，避免
-     *  @Shadow 父类字段导致 mixin 崩溃）。 */
+    /** 当前 AI 对应的卫兵实体（由 redirect 处理器缓存）。 */
     private AbstractEntityCitizen caravan$worker;
 
     @Shadow(remap = false)
@@ -71,26 +56,12 @@ public abstract class AbstractEntityAIGuardMixin
     @Inject(method = "decide", at = @At("HEAD"), cancellable = true, remap = false)
     private void caravan$decide(final CallbackInfoReturnable<IAIState> cir)
     {
-        // 需求（诊断）：工作模式为【商队护卫】时输出一次判定信息（是否被商队小屋选中）。
-        if (!caravan$diagnosed
-            && CaravanGuardHelper.CARAVAN_TASK_KEY.equals(buildingGuards.getTask()))
-        {
-            caravan$diagnosed = true;
-            final BuildingCaravanLeader diagHut = activeHut();
-            com.example.caravan.CaravanMod.LOGGER.info(
-                "Caravan: 卫兵塔 {} 为【商队护卫】模式（被选中={}，away={}，出行中={}）",
-                buildingGuards.getPosition(),
-                diagHut != null,
-                diagHut != null && CaravanGuardHelper.isLeaderAway(diagHut),
-                diagHut != null && CaravanGuardHelper.isCaravanTravelling(diagHut));
-        }
         final BuildingCaravanLeader hut = activeHut();
         if (hut == null)
         {
             return;
         }
-        // 需求（bug 修复）：我们在此处提前返回，绕过了原版 decide() 的 5% 概率
-        // equipInventoryArmor()——补上该调用，确保护甲/武器能被穿上。
+        // decide() 提前返回时绕过原版的 5% 概率 equipInventoryArmor()，此处补上。
         try
         {
             if (buildingGuards.getColony().getWorld().random.nextDouble() < 0.05)
@@ -105,54 +76,16 @@ public abstract class AbstractEntityAIGuardMixin
         if (CaravanGuardHelper.isLeaderAway(hut) || CaravanGuardHelper.isCaravanTravelling(hut))
         {
             // 领袖消失（模拟旅行）或出行未模拟：跟随到领袖位置。
-            long time = 0;
-            try
-            {
-                time = buildingGuards.getColony().getWorld().getGameTime();
-            }
-            catch (final Exception ignored)
-            {
-                // 诊断失败不影响逻辑。
-            }
-            if (time - caravan$lastActionLog >= 200)
-            {
-                caravan$lastActionLog = time;
-                final BlockPos leaderPos = CaravanGuardHelper.leaderPosition(hut);
-                com.example.caravan.CaravanMod.LOGGER.info(
-                    "Caravan: 卫兵塔 {} 跟随（away={}，出行中={}，距领袖 {}）",
-                    buildingGuards.getPosition(),
-                    CaravanGuardHelper.isLeaderAway(hut),
-                    CaravanGuardHelper.isCaravanTravelling(hut),
-                    leaderPos != null
-                        ? (int) Math.sqrt(buildingGuards.getPosition().distSqr(leaderPos))
-                        : -1);
-            }
             cir.setReturnValue(follow());
         }
         else
         {
             // 商队未出发：驻守商队小屋。
-            long time = 0;
-            try
-            {
-                time = buildingGuards.getColony().getWorld().getGameTime();
-            }
-            catch (final Exception ignored)
-            {
-                // 诊断失败不影响逻辑。
-            }
-            if (time - caravan$lastActionLog >= 200)
-            {
-                caravan$lastActionLog = time;
-                com.example.caravan.CaravanMod.LOGGER.info(
-                    "Caravan: 卫兵塔 {} 驻守商队小屋", buildingGuards.getPosition());
-            }
             cir.setReturnValue(guard());
         }
     }
 
-    /** 需求（bug 修复）：商队护卫不随机睡觉——否则跟随/驻守途中入睡会
-     *  卡住 2~3 分钟（睡眠期间不索敌、不跟随），表现为“跟随中无法索敌”。 */
+    /** 商队护卫不随机睡觉——睡眠期间不索敌、不跟随。 */
     @Inject(method = "shouldSleep", at = @At("HEAD"), cancellable = true, remap = false)
     private void caravan$shouldSleep(final CallbackInfoReturnable<Boolean> cir)
     {
@@ -162,9 +95,7 @@ public abstract class AbstractEntityAIGuardMixin
         }
     }
 
-    /** 需求（bug 修复）：商队模式下缺少武器时不再进入 PREPARING 卡死——
-     *  保持 ATTACKING 追击敌人，同时以异步方式请求缺失武器
-     *  （公民请求，送达公民背包后 KnightCombatAI.canAttack 即可生效）。 */
+    /** 商队模式下缺少武器时不再进入 PREPARING 卡死，异步请求缺失武器。 */
     @Inject(method = "inCombat", at = @At("HEAD"), cancellable = true, remap = false)
     private void caravan$inCombat(final CallbackInfoReturnable<IAIState> cir)
     {
@@ -177,9 +108,7 @@ public abstract class AbstractEntityAIGuardMixin
         cir.setReturnValue(null);
     }
 
-    /** 需求（bug 修复）：以卫兵自身位置作为“追击参考点”——
-     *  否则追击范围以卫兵塔为圆心，卫兵跟随商队远离塔后无法索敌
-     *  （KnightCombatAI.isWithinPersecutionDistance 会拒绝所有塔外的敌人）。 */
+    /** 以卫兵自身位置作为追击参考点——否则远离卫兵塔后无法索敌。 */
     @Redirect(
         method = "getTaskReferencePoint",
         at = @At(

@@ -32,7 +32,7 @@ import java.util.List;
 
 /**
  * 旅行地图（JourneyMap）联动插件。
- * <p>需求：商队领袖进入消失状态后，在旅行地图上用一个“头像”标记模拟其
+ * <p>商队领袖进入消失状态后，在旅行地图上用一个“头像”标记模拟其
  * 前往各个目的地（含返程）的移动过程：</p>
  * <ul>
  *   <li>标记位置按“当前段起点 → 终点”根据剩余距离插值移动；</li>
@@ -102,7 +102,6 @@ public class CaravanJourneyMapPlugin implements IClientPlugin
         }
         catch (final Throwable ex)
         {
-            // 修复崩溃：旅行地图覆盖层接口可能随时抛出异常（如路线点数不足），
             // 插件更新绝不能导致游戏崩溃——记录警告并清理覆盖层。
             CaravanMod.LOGGER.warn("Failed to update JourneyMap caravan overlay", ex);
             removeOverlays();
@@ -118,10 +117,8 @@ public class CaravanJourneyMapPlugin implements IClientPlugin
             return;
         }
 
-        // 需求：商队出发后标记一直保持在大地图中——消失时使用模拟插值位置；
         // 未消失时优先用客户端实体位置（即时、精准），实体未加载时回退服务端同步位置。
         final boolean away = log.isAway();
-        // 需求（地图标记）：标记只在“出发交易”时显示——消失模拟 或 交易中（TRADING）；
         // 空闲/睡觉/备货/回到小屋后隐藏（领袖寻路找床位时不再显示标记）。
         final boolean trading = log.getStatus() == JobCaravanLeader.CaravanStatus.TRADING;
         if (!away && !trading)
@@ -147,7 +144,6 @@ public class CaravanJourneyMapPlugin implements IClientPlugin
         {
             pos = log.getLeaderPos();
         }
-        // 需求：未消失且领袖在小屋存储范围内（回到小屋/待命/备货）→ 隐藏标记，
         // 直到下次出发（离开小屋）时重新出现。
         if (!away && pos != null && pos.distSqr(log.getBuildingView().getID()) <= 36)
         {
@@ -166,14 +162,12 @@ public class CaravanJourneyMapPlugin implements IClientPlugin
         {
             lastMarkerPos = pos;
         }
-        // 需求：图标显示“下一个目的地将要进行的第一条交易”的结果物品；
         // 回程阶段服务端传空物品，此时沿用上一目的地的图标。
         final ItemStack nextIcon = log.getNextTradeIcon();
         if (!nextIcon.isEmpty())
         {
             currentIconStack = nextIcon;
         }
-        // 需求（显示）：先计算标签（服务端模拟状态驱动），再以标签内容参与签名，
         // 任何状态变化（旅行/夜行/扎营/露宿/交易）都会触发重绘。
         final String label = journeyMapLabel(log);
         final int signature = label.hashCode() * 31
@@ -191,7 +185,6 @@ public class CaravanJourneyMapPlugin implements IClientPlugin
                 marker.setActiveMapTypes(Context.MapType.Day, Context.MapType.Night, Context.MapType.Topo);
                 marker.setDisplayOrder(100);
             }
-            // 需求：文本框在图标下方（顶边对齐图标底边）并水平居中；
             // 再下移 8 像素、右移 8 像素。
             // 注意：JourneyMap 在北朝上（旋转角=0）时会对偏移取反（offsetY 取负），
             // 因此“向下/向右”需要传负值；图标底边在 +16，文字中心约在 +21，
@@ -200,7 +193,6 @@ public class CaravanJourneyMapPlugin implements IClientPlugin
             marker.setPoint(pos != null ? pos : BlockPos.ZERO);
             marker.setIcon(iconFor(currentIconStack));
             marker.setLabel(label);
-            // 需求：每 20 刻自动刷新——必须标记覆盖层为“需要重绘”，
             // 否则旅行地图不会重绘（表现为只有打开地图时才刷新）。
             marker.flagForRerender();
             show(marker);
@@ -232,7 +224,6 @@ public class CaravanJourneyMapPlugin implements IClientPlugin
         return null;
     }
 
-    /** 需求（追踪改进）：在客户端等级中直接查找商队领袖实体，返回其即时位置。 */
     private static BlockPos leaderEntityPos(final Minecraft mc)
     {
         if (mc.level == null)
@@ -262,7 +253,6 @@ public class CaravanJourneyMapPlugin implements IClientPlugin
         return null;
     }
 
-    /** 需求：按当前段的进度插值计算领袖的模拟位置。 */
     private static BlockPos interpolate(final CaravanLogModuleView log)
     {
         final BlockPos start = log.getAwayLegStart();
@@ -310,7 +300,6 @@ public class CaravanJourneyMapPlugin implements IClientPlugin
         lastSignature = Integer.MIN_VALUE;
     }
 
-    /** 需求（显示）：标记文字——按商队模拟状态显示（服务端权威）。 */
     private static String journeyMapLabel(final CaravanLogModuleView log)
     {
         return switch (log.getCampStatus())
@@ -324,7 +313,6 @@ public class CaravanJourneyMapPlugin implements IClientPlugin
     }
 
 
-    /** 需求：商队图标——显示“下一个目的地第一条交易”的结果物品原版图标。 */
     private static MapImage iconFor(final ItemStack stack)
     {
         if (stack == null || stack.isEmpty())

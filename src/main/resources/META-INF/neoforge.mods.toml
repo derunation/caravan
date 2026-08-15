@@ -4,11 +4,12 @@ license = "MIT"
 
 [[mods]]
 modId = "caravan"
-    version = "1.0.0"
-displayName = "Caravan - MineColonies Addon"
-description = '''A test MineColonies addon that adds the Caravan Leader profession, a caravan marker item and a caravan hut.
-The Caravan Leader trades with vanilla villagers in distant villages: he requests the trade goods through the MineColonies request system, walks out of the colony, vanishes for 1-10 in-game days and returns with the trade results.'''
-authors = "Codex Test"
+    version = "1.0.1"
+displayName = "Minecolonies Caravans/模拟殖民地商队附属"
+description = '''A MineColonies addon that adds the Caravan Hut, the Caravan Leader/Member/Guard professions and a full caravan trading system:
+record villager trades with the Caravan Marker, prepare goods through the request system, simulate long-distance trips with camping and night travel,
+fulfill colony requests via on-demand trades, and show the caravan on JourneyMap while travelling.'''
+authors = ["Deepseek-V4-Flash", "Derunation"]
 
 [[mixins]]
 config = "caravan.mixins.json"

@@ -53,11 +53,9 @@ public final class ModBuildings
             // 自定义建筑视图：主窗口拦截【召回工人】按钮（领袖消失时只提示不召回）。
             .setBuildingViewProducer(() -> CaravanBuildingView::new)
             .setRegistryName(ResourceLocation.fromNamespaceAndPath(CaravanMod.MODID, "caravanleader"))
-            // 需求：主属性=敏捷（+100%XP，参考快递员），副属性=智力（+50%XP）。
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanLeaderWork",
                 () -> new WorkerBuildingModule(CaravanMod.JOB_CARAVAN_LEADER, Skill.Agility, Skill.Intelligence, false, building -> 1),
                 () -> WorkerBuildingModuleView::new))
-            // 需求：商队成员工作模块（参考学校同时雇佣教师/学童）——
             // 可与领袖同时雇佣，数量上限 = 小屋等级（1-5），属性与领袖一致。
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanMemberWork",
                 () -> new WorkerBuildingModule(CaravanMod.JOB_CARAVAN_MEMBER, Skill.Agility, Skill.Intelligence, false, building -> building.getBuildingLevel()),
@@ -68,7 +66,6 @@ public final class ModBuildings
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanSettings",
                 () -> new CaravanSettingsModule(),
                 () -> CaravanSettingsModuleView::new))
-            // 需求（菜单）：参照【下界矿井】的【菜单】页——复用本体的
             // RestaurantMenuModule（选择商队食用食物，作为最低存量保留）。
             // 存量 = 【设置】页“食物携带组数”模块输入的数值（0..32）。
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanMenu",
@@ -79,21 +76,17 @@ public final class ModBuildings
                     return stock != null ? stock.getFoodCarryCount() : 2;
                 }),
                 () -> RestaurantMenuModuleView::new))
-            // 需求：新增【设置】页面——最小绿宝石库存（默认 4），类似【最低存量】。
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanStock",
                 () -> new CaravanStockModule(),
                 () -> CaravanStockModuleView::new))
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanLog",
                 () -> new CaravanLogModule(),
                 () -> CaravanLogModuleView::new))
-            // 需求（商队护卫）：【护卫】页——列出“商队护卫”工作模式的卫兵并选中/取消。
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanGuard",
                 () -> new CaravanGuardModule(),
                 () -> CaravanGuardModuleView::new))
-            // 需求：参考其它建筑增加【最低存量】模块（复用本体实现，标签页图标 stock.png）。
             // 注意：模块注册顺序决定标签页顺序——最低存量排在建筑统计之前。
             .addBuildingModuleProducer(BuildingModules.MIN_STOCK)
-            // 需求：建筑统计模块（复用 minecolonies 本体标准 producer，标签页图标 stats.png）。
             .addBuildingModuleProducer(BuildingModules.STATS_MODULE)
             .createBuildingEntry();
 

@@ -35,7 +35,6 @@ public class WindowCaravanOverview extends BOWindow
 
     private final IBuildingView buildingView;
     private final CaravanTradeListModuleView moduleView;
-    /** 需求（排序按钮失效修复）：全面签名 + 首帧强制刷新，避免按钮不生效。 */
     private int lastSignature = Integer.MIN_VALUE;
     private boolean forceRefresh = true;
 
@@ -50,7 +49,6 @@ public class WindowCaravanOverview extends BOWindow
     public void onOpened()
     {
         super.onOpened();
-        // 需求（总览）：右下角【返回】按钮——关闭本窗口返回【交易列表】主页面。
         final Button back = findPaneOfTypeByID(BUTTON_BACK, Button.class);
         if (back != null)
         {
@@ -101,7 +99,6 @@ public class WindowCaravanOverview extends BOWindow
                 {
                     return;
                 }
-                // 需求：第一行显示 售出物（成本）→ 购入物（结果），图标带数量角标。
                 final ItemIcon costIcon = rowPane.findPaneOfTypeByID("costIcon", ItemIcon.class);
                 final ItemStack cost = !offer.costs().isEmpty() ? offer.costs().get(0) : ItemStack.EMPTY;
                 costIcon.setVisible(!cost.isEmpty());
@@ -109,9 +106,7 @@ public class WindowCaravanOverview extends BOWindow
                 final ItemIcon icon = rowPane.findPaneOfTypeByID("resultIcon", ItemIcon.class);
                 icon.setVisible(true);
                 icon.setItem(offer.result().copy());
-                // 需求：第二行显示 状态（单次/按需/重复）+ 位置（距离/Waystone 名称）。
                 final Text info = rowPane.findPaneOfTypeByID("offerInfo", Text.class);
-                // 需求（GUI 修复）：显式强制左对齐（不依赖 XML 属性解析，
                 // 否则该文本会表现为居中对齐）。
                 info.setTextAlignment(Alignment.MIDDLE_LEFT);
                 info.setText(Component.translatable("com.caravan.gui.overview.status",
@@ -125,7 +120,6 @@ public class WindowCaravanOverview extends BOWindow
         });
     }
 
-    /** 需求（排序按钮失效修复）：签名覆盖激活交易集合、顺序、总交易数及模式变化。 */
     private int signature()
     {
         int hash = moduleView.getTotalOfferCount();

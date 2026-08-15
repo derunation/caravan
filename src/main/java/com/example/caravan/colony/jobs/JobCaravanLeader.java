@@ -127,7 +127,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         TRADING
     }
 
-    /** 消失期间的阶段（需求3：去程 → 交易中 → 回程）。 */
     public enum AwayPhase
     {
         /** 去程：距离倒数中。 */
@@ -138,7 +137,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         RETURNING
     }
 
-    /** 需求（模拟旅行状态机）：商队模拟旅行中的状态（旅行地图/日志显示）。 */
     public enum CampStatus
     {
         /** 白天移动（旅行中）。 */
@@ -171,13 +169,9 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
 
     /** 交易阶段每笔交易停留的游戏刻（与 AI 的 TRADE_WAIT_TICKS 保持一致）。 */
     private static final int AWAY_TRADE_TICKS_PER_TRADE = 80;
-    /** 需求（商队速度/延迟）：交易延迟下限——原设计的 25%，即每笔 20 刻。 */
     private static final int MIN_TRADE_DELAY_TICKS = 20;
-    /** 需求（商队速度/延迟）：每名商队成员降低的交易时间比例（5%）。 */
     private static final double TRADE_DELAY_REDUCTION_PER_MEMBER = 0.05;
-    /** 需求（商队速度/延迟）：基础移动速度（与快递员速度公式一致）。 */
     private static final double BASE_MOVEMENT_SPEED = 0.3;
-    /** 需求：敏捷速度加成系数（与 minecolonies 快递员一致：每级敏捷 +0.003 移动速度）。 */
     private static final double BONUS_SPEED_PER_AGILITY_LEVEL = 0.003D;
 
     /** 是否已消失（隐形，等待去程/回程模拟结束）。 */
@@ -190,19 +184,12 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     private int awayMaxDistance;
     /** “交易中”阶段剩余停留时间（游戏刻）。 */
     private int awayTradeTicks;
-    /** 需求（多段模拟）：当前模拟位置（起点 = 消失位置，每段到达后 = 该段目标位置）。 */
     private BlockPos awayPos;
-    /** 需求（多段模拟）：消失时的原始位置（回程距离 = 末段位置 → 原始位置）。 */
     private BlockPos awayOriginPos;
-    /** 需求（回程机制）：回程目的地——小屋与最后交易目标连线与殖民地边界的交点。 */
     private BlockPos awayReturnPos;
-    /** 需求（穿越殖民地）：本段路径进入殖民地的点 A（实体在此现身并步行穿越）。 */
     private BlockPos awayColonyEntry;
-    /** 需求（穿越殖民地）：本段路径离开殖民地的点 B（步行至此再次消失）。 */
     private BlockPos awayColonyExit;
-    /** 需求（穿越殖民地）：模拟位置是否已到达入口 A、等待实体步行穿越。 */
     private boolean awayColonyEntryReached;
-    /** 需求（多段模拟）：单段交易打包半径（格）：到达某交易地点后，结算该点 100 格内的全部交易。 */
     public static final int TRADE_PACK_RADIUS = 100;
     /** 本次行程剩余待执行的订单。 */
     private final List<TripTrade> trip = new ArrayList<>();
@@ -212,14 +199,12 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     private final List<ItemStack> results = new ArrayList<>();
     /** 当前状态（日志展示用，不持久化）。 */
     private CaravanStatus status = CaravanStatus.WAITING_ITEMS;
-    /** 需求（文本显示）：向客户端展示用的相位——未消失时由 AI 按行为设置
+    /**
      *  （走向交易目标=去程、等待交易=交易中、回小屋=回程），消失时用 awayPhase。 */
     private AwayPhase displayPhase = AwayPhase.OUTBOUND;
-    /** 需求（扎营）：商队处于 AWAY 模拟旅行中并进入“殖民地睡眠时间”原地休息（扎营）。 */
     private boolean resting;
-    /** 需求（模拟旅行状态机）：商队当前模拟状态（TRAVEL/NIGHT_TRAVEL/CAMP/ROUGH/TRADING）。 */
     private CampStatus campStatus = CampStatus.TRAVEL;
-    /** 需求（疾病）：无帐篷在模拟旅行中过夜时，每名商队人员累积的患病概率
+    /**
      *  （key = 市民 UUID，值 = 0..100，返程后统一结算）。 */
     private final Map<UUID, Integer> nightIllnessChance = new HashMap<>();
 
@@ -235,7 +220,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     }
 
     /**
-     * 需求：市民升级时刷新移动速度加成。
      * 参考快递员 JobDeliveryman.onLevelUp：向 MOVEMENT_SPEED 添加
      * ADD_VALUE 修饰符，数值 = 敏捷等级 × 0.003。
      */
@@ -245,7 +229,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         applySpeedBonus();
     }
 
-    /** 需求：敏捷 → 移动速度（与快递员程度相同）。市民实体未加载时自动跳过。 */
     public void applySpeedBonus()
     {
         getCitizen().getEntity().ifPresent(entity ->
@@ -316,50 +299,42 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         this.status = status;
     }
 
-    /** 需求（文本显示）：当前展示相位（消失时=awayPhase，未消失时=AI 设置值）。 */
     public AwayPhase getDisplayPhase()
     {
         return away ? awayPhase : displayPhase;
     }
 
-    /** 需求（文本显示）：未消失时由 AI 设置展示相位。 */
     public void setDisplayPhase(final AwayPhase displayPhase)
     {
         this.displayPhase = displayPhase;
     }
 
-    /** 需求（扎营）：商队当前是否处于模拟旅行中的原地休息（扎营）状态。 */
     public boolean isResting()
     {
         return resting;
     }
 
-    /** 需求（扎营）：由 AI 在入睡/醒来时设置。 */
     public void setResting(final boolean resting)
     {
         this.resting = resting;
     }
 
-    /** 需求（模拟旅行状态机）：查询当前模拟状态。 */
     public CampStatus getCampStatus()
     {
         return campStatus;
     }
 
-    /** 需求（模拟旅行状态机）：设置当前模拟状态（CAMP/ROUGH 时同步 resting）。 */
     public void setCampStatus(final CampStatus status)
     {
         campStatus = status;
         resting = status == CampStatus.CAMP || status == CampStatus.ROUGH;
     }
 
-    /** 需求（疾病）：查询某名商队人员无帐篷过夜的累积患病概率（0..100）。 */
     public int getNightIllnessChance(final UUID citizenId)
     {
         return nightIllnessChance.getOrDefault(citizenId, 0);
     }
 
-    /** 需求（疾病）：为某名商队人员增加无帐篷过夜的患病概率（上限 100）。 */
     public void addNightIllnessChance(final UUID citizenId, final int delta)
     {
         nightIllnessChance.put(
@@ -367,7 +342,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
             Math.min(100, getNightIllnessChance(citizenId) + delta));
     }
 
-    /** 需求（疾病）：取出并清空全部累积患病概率（返程后统一结算用）。 */
     public Map<UUID, Integer> takeNightIllnessChances()
     {
         final Map<UUID, Integer> copy = new HashMap<>(nightIllnessChance);
@@ -375,7 +349,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         return copy;
     }
 
-    /** 需求（疾病/日志）：查询当前最高的累积患病概率（每日扎营总结用）。 */
     public int getMaxNightIllnessChance()
     {
         int max = 0;
@@ -425,7 +398,7 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     }
 
     /**
-     * 进入消失状态（需求：多段模拟）：
+     * 进入消失状态：
      * 记录出发位置与模拟起点，首段去程距离 = 当前位置到最近剩余目标的距离；
      * 之后每完成一段交易，由 {@link #afterTradingSettled()} 决定下一段去程或回程。
      */
@@ -440,7 +413,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         awayPos = originPos;
         awayOriginPos = originPos;
         awayReturnPos = null;
-        // 需求（穿越殖民地）：检测首段路径是否经过殖民地，并记录进入/离开点。
         final TripTrade first = nearestPendingTarget(awayPos);
         if (first != null)
         {
@@ -455,7 +427,7 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     }
 
     /**
-     * 每 20 游戏刻调用一次（需求：多段模拟）：
+     * 每 20 游戏刻调用一次：
      * 去程：距离减 10 格，归零 → 转为【交易中】，停留 = 本段 100 格内可执行交易数 × 每笔延迟；
      * 交易中：剩余刻数减 20，归零 → 标记为【回程】（AI 结算后调用
      *         {@link #afterTradingSettled()} 决定下一段去程或真正的回程）；
@@ -470,7 +442,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         switch (awayPhase)
         {
             case OUTBOUND:
-                // 需求（穿越殖民地）：若本段路径经过殖民地且模拟位置已到达入口 A，
                 // 则停在 A 点（实体现身步行至出口 B 后继续倒数，见 finishColonyWalk）。
                 if (!awayColonyEntryReached && awayColonyEntry != null && awayColonyExit != null)
                 {
@@ -487,7 +458,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
                         }
                     }
                 }
-                // 需求（商队速度）：模拟移动速度受“商队中敏捷最低者”影响——
                 // 与殖民地内移动的速度公式（基础 0.3 + 敏捷×0.003，上限 0.5）一致。
                 awayDistance = Math.max(0, awayDistance - simulatedDistancePerStep());
                 if (awayDistance <= 0)
@@ -500,7 +470,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
                     {
                         awayPos = reached.trade().villagePos();
                     }
-                    // 需求：智力每 10 级降低 5% 的单笔交易延迟（最低 50%）。
                     awayTradeTicks = pendingCountNear(awayPos, TRADE_PACK_RADIUS) * awayTradeDelayTicks();
                 }
                 return false;
@@ -526,7 +495,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     }
 
     /**
-     * 需求（多段模拟）：本段“交易中”结算完毕后调用——
      * 若仍有未完成交易，则模拟前往下一个最近的交易地点（新一段去程，
      * 显示“去程 剩余XX格”）；否则模拟返回（末段位置 → 消失时的原始位置）。
      */
@@ -538,13 +506,11 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
             awayPhase = AwayPhase.OUTBOUND;
             awayMaxDistance = blockDistance(awayPos, next.trade().villagePos());
             awayDistance = awayMaxDistance;
-            // 需求（穿越殖民地）：检测新一段去程是否经过殖民地。
             setupColonyCrossing(next.trade().villagePos());
         }
         else
         {
             awayPhase = AwayPhase.RETURNING;
-            // 需求（回程机制）：复用“穿越殖民地”的入口点计算——回程出现位置 =
             // 最后目标 → 小屋直线路径首次进入殖民地领地的入口点 A；
             // 计算失败时回退到旧的“连线与边界交点”算法。
             awayReturnPos = findColonyEntry(awayPos, hutPosition());
@@ -574,37 +540,31 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         return awayOriginPos;
     }
 
-    /** 需求（回程机制）：回程目的地（殖民地边界交点；未计算时为 null）。 */
     public BlockPos getAwayReturnPos()
     {
         return awayReturnPos;
     }
 
-    /** 需求（穿越殖民地）：本段路径进入殖民地的点 A（实体在此现身）。 */
     public BlockPos getAwayColonyEntry()
     {
         return awayColonyEntry;
     }
 
-    /** 需求（穿越殖民地）：本段路径离开殖民地的点 B（步行至此再次消失）。 */
     public BlockPos getAwayColonyExit()
     {
         return awayColonyExit;
     }
 
-    /** 需求（穿越殖民地）：模拟位置已到达入口 A，等待实体步行穿越殖民地。 */
     public boolean isWalkingThroughColony()
     {
         return awayColonyEntryReached && awayColonyEntry != null && awayColonyExit != null;
     }
 
-    /** 需求（旅行地图联动）：当前段的起点（去程=上一停靠点/出发点；回程=最后停靠点）。 */
     public BlockPos getAwayLegStart()
     {
         return awayPos;
     }
 
-    /** 需求（旅行地图联动）：当前段的终点（去程=最近剩余目标；交易中=当前停靠点；回程=出发点）。 */
     public BlockPos getAwayLegEnd()
     {
         if (awayPhase == AwayPhase.RETURNING)
@@ -615,7 +575,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         return next != null ? next.trade().villagePos() : awayPos;
     }
 
-    /** 需求（旅行地图联动）：剩余路线的停靠点列表（出发点 + 按访问顺序排列的剩余目标）。 */
     public List<BlockPos> getAwayRoute()
     {
         final List<BlockPos> route = new ArrayList<>();
@@ -690,7 +649,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     }
 
     /**
-     * 需求（回程机制 + 真实领地）：计算“商队小屋 → 最后交易目标”方向上，
      * 殖民地真实领地的边界位置——从小屋沿目标方向逐步向外扫描，
      * 返回最后一个仍属于殖民地领地（区块归属）的位置。
      * 领地边界变化时，这里每次按需重新计算。
@@ -750,7 +708,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     }
 
     /**
-     * 需求（穿越殖民地）：检测从 from 到 to 的直线路径是否穿过殖民地——
      * 以 16 格步长向外扫描降低开销；确认进入殖民地后，再以 2 格步长
      * 反向精化出边界点（A = 进入点，B = 离开点）。
      */
@@ -787,7 +744,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
      * </ul>
      */
     /**
-     * 需求（回程机制复用）：只计算直线路径 from→to 首次进入殖民地的入口点 A——
      * 以 16 格步长扫描降低开销，确认进入后以 2 格步长反向精化边界。
      */
     private BlockPos findColonyEntry(final BlockPos from, final BlockPos to)
@@ -947,14 +903,12 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
             from.getZ() + (int) Math.round(nz * dist));
     }
 
-    /** 需求：智力降低每项交易的延迟——每 10 智力降低 5%，下限 50%（40 刻）。 */
     private int awayTradeDelayTicks()
     {
         return tradeDelayTicks();
     }
 
     /**
-     * 需求（商队速度/延迟）：每笔交易的延迟——
      * 领袖智力每 10 级降低 5%；每名商队成员再降低 5%（5 名时 -25%）；
      * 两者相乘，下限为原设计（80 刻）的 25% = 20 刻。
      */
@@ -967,7 +921,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
             Math.round(AWAY_TRADE_TICKS_PER_TRADE * intelligenceFactor * memberFactor));
     }
 
-    /** 需求（商队速度）：商队中在编的商队成员数量（含在线与未加载的指派市民）。 */
     public int caravanMemberCount()
     {
         int count = 0;
@@ -993,7 +946,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         return count;
     }
 
-    /** 需求（商队速度）：商队中敏捷最低者的敏捷等级（领袖 + 全部成员）。 */
     public int lowestAgility()
     {
         int lowest = getCitizen().getCitizenSkillHandler().getLevel(Skill.Agility);
@@ -1021,7 +973,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         return lowest;
     }
 
-    /** 需求（饥饿）：商队人员（领袖 + 全部成员）中饱食度为 0（饥饿）的人数。 */
     public int hungryCount()
     {
         int count = isHungry(getCitizen()) ? 1 : 0;
@@ -1052,7 +1003,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         return count;
     }
 
-    /** 需求（饥饿）：市民饱食度是否为 0（饥饿）。 */
     private static boolean isHungry(final ICitizenData data)
     {
         try
@@ -1066,18 +1016,13 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     }
 
     /**
-     * 需求（商队速度）：每 20 刻的距离减少量——
      * 基准 10 格 ×（最低敏捷对应的速度 / 基础速度），速度 = min(0.5, 0.3 + 敏捷×0.003)。
-     * 需求（商队护卫）：每有一名护卫卫兵，模拟旅行速度 +10%。
      */
     public int simulatedDistancePerStep()
     {
         double speed = Math.min(0.5, BASE_MOVEMENT_SPEED + lowestAgility() * 0.003D);
-        // 需求：每有一名商队人员饥饿（饱食度 0），移动速度 -5%。
         speed *= Math.max(0.0D, 1.0D - hungryCount() * 0.05D);
-        // 需求：每有一名商队护卫，模拟旅行移动速度 +10%。
         speed *= 1.0D + 0.1D * com.example.caravan.colony.buildings.CaravanGuardHelper.caravanGuardCount(getColony());
-        // 需求：最低移动速度 1 格/20 刻（1 殖民地刻）——防止速度归零后商队永远无法回归。
         return Math.max(1, (int) Math.round(10.0 * speed / BASE_MOVEMENT_SPEED));
     }
 
@@ -1086,7 +1031,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     {
         away = false;
         awayPhase = AwayPhase.OUTBOUND;
-        // 需求（文本修复）：归来后领袖处于殖民地范围内、走回小屋期间应显示“返回中”，
         // 而非“旅行中”——直到下一次出发才切回“旅行中”。
         displayPhase = AwayPhase.RETURNING;
         awayDistance = 0;
@@ -1101,7 +1045,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
     }
 
     /**
-     * 需求（穿越殖民地）：实体步行到达出口 B 后调用——
      * 从剩余距离中扣除步行段（A→B），模拟位置推进到 B，继续去程倒数。
      */
     public void finishColonyWalk()
@@ -1125,7 +1068,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         trip.clear();
         supplies.clear();
         results.clear();
-        // 需求（地图标记）：回到小屋卸货后复位状态——标记只在出发交易时显示，
         // 空闲/睡觉/备货阶段不显示。
         status = CaravanStatus.WAITING_ITEMS;
     }
@@ -1170,7 +1112,6 @@ public class JobCaravanLeader extends AbstractJob<EntityAIWorkCaravanLeader, Job
         tag.put(TAG_TRIP, tripList);
         tag.put(TAG_SUPPLIES, serializeStacks(provider, supplies));
         tag.put(TAG_RESULTS, serializeStacks(provider, results));
-        // 需求（疾病）：持久化无帐篷过夜的累积患病概率。
         final CompoundTag illness = new CompoundTag();
         for (final Map.Entry<UUID, Integer> entry : nightIllnessChance.entrySet())
         {

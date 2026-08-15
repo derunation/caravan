@@ -28,13 +28,10 @@ import java.util.Objects;
  */
 public class CaravanLogModule extends AbstractBuildingModule implements IPersistentModule, ITickingModule
 {
-    /** 需求（旅行地图）：上一殖民地刻同步给客户端的睡眠窗口状态。 */
     private Boolean lastSleepSync;
-    /** 需求（旅行地图）：上一殖民地刻同步给客户端的夜行窗口状态。 */
     private Boolean lastNightSync;
 
     /**
-     * 需求（旅行地图）：每殖民地刻检测时间状态（睡眠窗口/夜行窗口）变化——
      * 商队 AI 可能在夜晚被加速/跳过时从未 tick 到窗口，无法触发 resting 变化，
      * 因此由本模块直接按当前时间判定，并在窗口边界变化时 markDirty，
      * 确保客户端视图的 sleepTimeNow/resting 及时更新（与 AI 是否运行无关）。
@@ -65,7 +62,6 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
         }
     }
 
-    /** 需求（旅行地图）：当前是否处于夜间赶路窗口（日落 ~ 睡眠时间之间）。 */
     private boolean isNightTravelNow()
     {
         if (isSleepTimeNow())
@@ -79,7 +75,6 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
             {
                 return false;
             }
-            // 修复bug：昼夜判定用真实 dayTime（与商队 AI 一致，避免睡觉跳夜晚后偏移）。
             final long dayTime = world.getDayTime() % 24000L;
             long sunset = 12000L;
             try
@@ -110,20 +105,14 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
 
         buffer.writeBoolean(true);
         buffer.writeBoolean(job.isAway());
-        // 需求（扎营）：模拟旅行中是否处于原地休息（扎营）状态。
         buffer.writeBoolean(job.isResting());
-        // 需求（模拟旅行状态机）：商队当前模拟状态（旅行中/夜行中/扎营中/露宿中/交易中）。
         buffer.writeVarInt(job.getCampStatus().ordinal());
-        // 需求（旅行地图）：同步“当前是否处于殖民地睡眠时间窗口”——
         // resting 依赖商队 AI tick 到扎营分支；玩家睡觉跳过夜晚时 AI 可能从未
         // tick 到睡眠窗口，地图/日志无法显示“扎营中/露宿中”。此处用当前游戏时间
         // 直接判定（与白天长度/日落无关，仅取决于原扎营时间 + 研究加成）。
         buffer.writeBoolean(isSleepTimeNow());
-        // 需求（穿越殖民地）：同步“正在穿越殖民地”（实体现身步行中）状态，
         // 供旅行地图标记在穿越期间跟随领袖实体位置。
         buffer.writeBoolean(job.isWalkingThroughColony());
-        // 需求（旅行地图联动）：商队领袖的 NPC 贴图路径（用于头像图标）。
-        // 修复崩溃：服务端 getTexture() 可能为 null（贴图在服务端不解析），
         // 为 null 时传空串，客户端自动回退到默认徽章图标。
         buffer.writeUtf(job.getCitizen().getEntity()
             .map(entity -> entity.getTexture())
@@ -131,17 +120,14 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
             .map(ResourceLocation::toString)
             .orElse(""));
         buffer.writeVarInt(job.getStatus().ordinal());
-        // 需求（文本显示）：同步“展示相位”（未消失时由 AI 设置；消失时=awayPhase），
         // 客户端据此显示 旅行中/交易中/返回中。
         buffer.writeVarInt(job.getDisplayPhase().ordinal());
-        // 需求（旅行地图联动）：同步领袖实体的当前实际位置——
         // 未消失时大地图标记跟随领袖走动；消失时该位置无意义（用 away 插值）。
         writePos(buffer, job.getCitizen().getEntity()
             .map(entity -> entity.blockPosition())
             .orElse(null));
         if (job.isAway())
         {
-            // 需求（旅行地图联动）：初始距离用于计算移动进度。
             buffer.writeVarInt(Math.max(0, job.getAwayMaxDistance()));
             if (job.getAwayPhase() == JobCaravanLeader.AwayPhase.TRADING)
             {
@@ -151,7 +137,6 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
             {
                 buffer.writeVarInt(Math.max(0, job.getAwayDistance()));
             }
-            // 需求（旅行地图联动）：同步模拟路线数据——出发点、当前段起点/终点、
             // 以及剩余停靠点列表（出发点 + 按访问顺序排列的剩余目标）。
             writePos(buffer, job.getAwayOriginPos());
             writePos(buffer, job.getAwayLegStart());
@@ -179,7 +164,6 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
             totals.merge(offer.offerIndex(), 1, Integer::sum);
         }
         buffer.writeVarInt(results.size());
-        // 需求（减值修复）：多条交易需要同一种售出品时，按行程顺序分配已有量——
         // 例如 3 笔交易各需 9 绿宝石、小屋+背包共 5 个，则依次显示 5/9、0/9、0/9，
         // 而不是每笔都重复显示 5/9（旧实现重复计算）。
         final java.util.Map<net.minecraft.world.item.Item, Integer> allocated = new java.util.HashMap<>();
@@ -192,7 +176,6 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
             for (final ItemStack cost : offerCosts)
             {
                 ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, cost);
-                // 需求（备货供应比例）：同步每个成本的“已有供应量”（小屋+背包，
                 // 截断到该交易的需要量；同一种售出品按行程顺序减值分配）。
                 final int needed = cost.getCount() * totalCopies;
                 final int already = allocated.getOrDefault(cost.getItem(), 0);
@@ -203,10 +186,8 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
             buffer.writeVarInt(completed.getOrDefault(entry.getKey(), 0));
             buffer.writeVarInt(totalCopies);
         }
-        // 需求：同步“下一个目的地将要进行的第一条交易”的结果物品图标，
         // 供旅行地图标记使用；回程阶段无下一目的地时传空物品。
         ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, nextDestinationTradeIcon(job));
-        // 需求（消耗品）：商队领袖/成员背包中的每顶帐篷独立图标（各含耐久度条），
         // 显示上限 3 顶（不与饥饿人数挂钩）。
         final java.util.List<ItemStack> tents = caravanTents(job);
         buffer.writeVarInt(tents.size());
@@ -214,25 +195,21 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
         {
             ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, tent);
         }
-        // 需求（消耗品）：菜单选定的食物——每个堆叠一个图标（带数量角标）。
         final java.util.List<ItemStack> foods = caravanFoods(job);
         buffer.writeVarInt(foods.size());
         for (final ItemStack food : foods)
         {
             ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, food);
         }
-        // 需求（消耗品）：火把——每个堆叠一个图标（带数量角标）。
         final java.util.List<ItemStack> torches = caravanTorches(job);
         buffer.writeVarInt(torches.size());
         for (final ItemStack torch : torches)
         {
             ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, torch);
         }
-        // 需求（饥饿）：同步饥饿人数，客户端据此显示饱食度图标（满/空）与 Tooltip。
         buffer.writeVarInt(job.hungryCount());
     }
 
-    /** 需求（旅行地图）：当前游戏时间是否处于“殖民地睡眠时间”窗口。 */
     private boolean isSleepTimeNow()
     {
         try
@@ -242,7 +219,6 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
             {
                 return false;
             }
-            // 修复bug：昼夜判定用真实 dayTime（与商队 AI 一致）。
             final long dayTime = world.getDayTime() % 24000L;
             double sleepStart = 12600.0;
             try
@@ -268,7 +244,6 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
     }
 
     /**
-     * 需求（消耗品）：收集领袖/成员背包中的每顶商队帐篷——
      * 每顶帐篷是一个独立的单格栈（count = 1，保留各自耐久度），
      * 客户端逐顶显示独立图标与耐久度条；最多返回 9 顶（携带量上限）。
      */
@@ -338,7 +313,6 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
     }
 
     /**
-     * 需求（消耗品）：收集领袖/成员背包中【菜单】页选定的食物——
      * 每个堆叠一个图标（客户端显示数量角标），最多返回 3 个堆叠。
      */
     private static java.util.List<ItemStack> caravanFoods(final JobCaravanLeader job)
@@ -406,7 +380,6 @@ public class CaravanLogModule extends AbstractBuildingModule implements IPersist
     }
 
     /**
-     * 需求（消耗品）：收集领袖/成员背包中的火把——每个堆叠一个图标
      * （客户端显示数量角标），最多返回 3 个堆叠。
      */
     private static java.util.List<ItemStack> caravanTorches(final JobCaravanLeader job)

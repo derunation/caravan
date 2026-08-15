@@ -113,21 +113,7 @@
   "com.arxyt.colonypathingedition.core.easycolony.colony.read_mind.state.FOLLOW_LEADER": "Following the Caravan Leader",
   "com.arxyt.colonypathingedition.core.easycolony.colony.read_mind.state.VANISH_PREP": "Walking to the caravan vanish point",
   "com.arxyt.colonypathingedition.core.easycolony.colony.read_mind.state.VANISHED": "Vanished with the caravan",
-  "com.caravan.debug.enabled": "Caravan debug mode enabled",
-  "com.caravan.debug.disabled": "Caravan debug mode disabled",
-  "com.caravan.debug.action.acquire": "[Caravan] Acquired new order",
-  "com.caravan.debug.action.prepare": "[Caravan] Preparing goods",
-  "com.caravan.debug.action.depart": "[Caravan] Departing (target %s, %s, %s)",
-  "com.caravan.debug.action.trade_summary": "[Caravan] Trading with %s villagers for %s trades",
-  "com.caravan.debug.action.away": "[Caravan] Away (outbound/return)",
-  "com.caravan.debug.action.next_destination": "[Caravan] Heading to the next destination (%s, %s, %s)",
-  "com.caravan.debug.action.returning": "[Caravan] Returning",
-  "com.caravan.debug.action.cancel": "[Caravan] Canceled request: %s",
-  "com.caravan.debug.action.cancel_satisfied": "[Caravan] Request satisfied, canceled leftover: %s",
   "item.caravan.caravan_tent": "Caravan Tent",
-  "com.caravan.debug.action.tent_durability": "[Caravan] Tent durability %s/%s",
-  "com.caravan.debug.action.request": "[Caravan] Request created: %s x%s",
-  "com.caravan.debug.action.request_failed": "[Caravan] Request creation failed: %s x%s",
 
 
 

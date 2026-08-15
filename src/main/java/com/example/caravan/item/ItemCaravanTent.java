@@ -22,7 +22,6 @@ public class ItemCaravanTent extends Item
         super(properties.durability(MAX_DURABILITY));
     }
 
-    /** 需求（Tooltip）：说明商队帐篷用途——在外扎营过夜时使用，无帐篷过夜增加患病风险。 */
     @Override
     public void appendHoverText(
         final ItemStack stack,

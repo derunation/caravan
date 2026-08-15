@@ -44,7 +44,6 @@ public class BuildingCaravanLeader extends AbstractBuilding
     }
 
     /**
-     * 需求（请求链重构）：商队小屋作为请求方收到“请求完成”通知时——
      * 若该请求由商队自身 resolver 处理（商队交易标记等），
      * 成果已在小屋存储中，无需再创建送达请求（避免本体为内部链生成
      * “自己送自己”或“运送 64 雕纹石砖”之类的虚假运送任务）；
@@ -69,7 +68,6 @@ public class BuildingCaravanLeader extends AbstractBuilding
     }
 
     /**
-     * 需求（成果运送完成·回调驱动）：minecolonies 在快递员送达（RESOLVED）或
      * 取消 Delivery 时，会调用 requester（商队小屋）的 onRequestedRequestCancelled——
      * 若该请求是本模块创建的成果运送，立即完成主请求（不依赖轮询与物品数量），
      * 修复“快递员送达后主请求永不注销”的问题。
@@ -93,7 +91,6 @@ public class BuildingCaravanLeader extends AbstractBuilding
     }
 
     /**
-     * 需求（bug 修复·最低存量）：覆写取货保留判定——在 minecolonies 遍历模块
      * （IAltersRequiredItems.alterItemsToBeKept）之外，直接把【绿宝石最低存量】
      * 作为【强制保留】条目加入（并置于 Map 首位优先匹配）。
      * 否则在部分环境下（模块遍历未被取货机制调用、或存在多个绿宝石保留条目时
@@ -111,7 +108,6 @@ public class BuildingCaravanLeader extends AbstractBuilding
                 stack -> !stack.isEmpty() && stack.getItem() == Items.EMERALD,
                 new Tuple<>(keep, true));
         }
-        // 需求（bug 修复）：商队帐篷必须保留在小屋/背包中（防止快递员取货收走）——
         // 否则帐篷送达小屋后会被 pickup 立即取走，商队永远拿不到帐篷。
         result.put(
             stack -> !stack.isEmpty() && stack.getItem() == CaravanMod.CARAVAN_TENT.get(),

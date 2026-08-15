@@ -16,7 +16,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 需求：商队领袖/成员的市民界面属性百分比显示。
  * <p>本体的 {@link CitizenWindowUtils#updateJobPage} 按固定规则显示：
  * 主属性 100%、互补 10%、相克 -10%、副属性 50%、互补 5%、相克 -5%——与我们的
  * 自定义经验分配（敏捷100/适应10/魔力-10/智力50/运动5/创意-5）不一致。

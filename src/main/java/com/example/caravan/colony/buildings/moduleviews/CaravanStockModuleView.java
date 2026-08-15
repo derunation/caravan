@@ -13,11 +13,8 @@ import net.minecraft.resources.ResourceLocation;
 public class CaravanStockModuleView extends AbstractBuildingModuleView
 {
     private int minEmeraldStock = 4;
-    /** 需求（设置）：商队帐篷携带量（默认 1）。 */
     private int tentCarryCount = 1;
-    /** 需求（设置）：商队食物携带组数（默认 2）。 */
     private int foodCarryCount = 2;
-    /** 需求（设置）：商队火把携带组数（默认 2）。 */
     private int torchCarryCount = 2;
 
     /** 查询当前最小绿宝石库存（默认 4）。 */
@@ -26,19 +23,16 @@ public class CaravanStockModuleView extends AbstractBuildingModuleView
         return minEmeraldStock;
     }
 
-    /** 需求（设置）：查询商队帐篷携带量。 */
     public int getTentCarryCount()
     {
         return tentCarryCount;
     }
 
-    /** 需求（设置）：查询食物携带组数。 */
     public int getFoodCarryCount()
     {
         return foodCarryCount;
     }
 
-    /** 需求（设置）：查询火把携带组数。 */
     public int getTorchCarryCount()
     {
         return torchCarryCount;
@@ -68,7 +62,6 @@ public class CaravanStockModuleView extends AbstractBuildingModuleView
     @Override
     public ResourceLocation getIconResourceLocation()
     {
-        // 需求：新【设置】页面沿用原【设置】页面的图标。
         return ResourceLocation.fromNamespaceAndPath("minecolonies", "textures/gui/modules/settings.png");
     }
 }

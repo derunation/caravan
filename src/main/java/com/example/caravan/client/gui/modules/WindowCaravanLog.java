@@ -33,7 +33,6 @@ import java.util.List;
 public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
 {
     private static final String LIST_TRADES = "trades";
-    /** 需求（消耗品）：日志页单行布局中各消耗品类别的图标槽位数（帐篷-食物-饱食度-火把）。 */
     private static final int TENT_ICONS = 3;
     private static final int FOOD_ICONS = 3;
     private static final int TORCH_ICONS = 3;
@@ -51,7 +50,6 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
     public void onOpened()
     {
         super.onOpened();
-        // 需求1：每次打开小屋 GUI 时请求服务器刷新建筑视图（含日志数据）。
         new CaravanRefreshBuildingMessage(buildingView).sendToServer();
         updateLog();
     }
@@ -60,7 +58,6 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
     public void onClosed()
     {
         super.onClosed();
-        // 需求2：关闭 GUI 时若领袖在等待物品，则清空其请求重新备货。
         new CaravanCloseGuiMessage(buildingView).sendToServer();
     }
 
@@ -90,7 +87,6 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
             info.setText(switch (moduleView.getAwayPhase())
             {
                 case OUTBOUND -> Component.translatable("com.caravan.gui.log.outbound", moduleView.getAwayDistance());
-                // 需求：交易中状态显示秒数（1 秒 = 20 游戏刻）。
                 case TRADING -> Component.translatable("com.caravan.gui.log.trading", moduleView.getAwayTradeTicks() / 20);
                 case RETURNING -> Component.translatable("com.caravan.gui.log.returning", moduleView.getAwayDistance());
             });
@@ -100,7 +96,6 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
             info.setText(Component.translatable("com.caravan.gui.log.inside_colony"));
         }
 
-        // 需求（模拟旅行状态机）：“目前状态”按服务端同步的模拟状态显示。
         final String statusKeyText = switch (moduleView.getCampStatus())
         {
             case CAMP -> "com.caravan.gui.log.status.resting";
@@ -112,17 +107,14 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
         findPaneOfTypeByID("statusText", Text.class).setText(Component.translatable(
             "com.caravan.gui.log.status", Component.translatable(statusKeyText)));
 
-        // 需求（消耗品）：帐篷每顶一个独立图标（含耐久度条）；
         // 食物/火把每个堆叠一个图标（带数量角标）。
         final List<ItemStack> tents = moduleView.getTentStacks();
         updateConsumableIcons(tents, "tentIcon", TENT_ICONS);
         updateConsumableIcons(moduleView.getFoodStacks(), "foodIcon", FOOD_ICONS);
         updateConsumableIcons(moduleView.getTorchStacks(), "torchIcon", TORCH_ICONS);
-        // 需求（GUI）：帐篷、食物、火把全部为空时，隐藏饥饿图标。
         final boolean noConsumables = tents.isEmpty()
             && moduleView.getFoodStacks().isEmpty()
             && moduleView.getTorchStacks().isEmpty();
-        // 需求（饥饿）：食物图标右侧显示玩家饱食度图标（与 Minecolonies 公民信息页一致，
         // 使用 minecraft:hud/food_full / hud/food_empty 鸡腿贴图）——
         // 无人饥饿 = 满鸡腿，有人饥饿 = 空鸡腿；Tooltip 显示饿肚子人数。
         final Image saturationIcon = findPaneOfTypeByID("saturationIcon", Image.class);
@@ -133,7 +125,6 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
             {
                 saturationIcon.setImage(ResourceLocation.withDefaultNamespace(
                     moduleView.getHungryCount() > 0 ? "hud/food_empty" : "hud/food_full"), false);
-                // 需求（GUI）：使用 BlockUI Tooltip 控件（drawSelfLast 绘制在最上层，
                 // 不会被物品图标角标遮挡），替代 onHoverId 隐藏文本方案。
                 final Tooltip saturationTooltip = new Tooltip();
                 saturationTooltip.setText(Component.translatable(
@@ -146,17 +137,14 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
         }
         final Text tentInfo = findPaneOfTypeByID("tentInfo", Text.class);
         final Text consumablesTitle = findPaneOfTypeByID("consumablesTitle", Text.class);
-        // 需求（GUI）：取消标题隐藏——无论有无消耗品，“消耗品：”标题始终显示。
         consumablesTitle.setVisible(true);
         if (noConsumables)
         {
-            // 需求（GUI）：无消耗品时在标题下方显示提示文字。
             tentInfo.setVisible(true);
             tentInfo.setText(Component.translatable("com.caravan.gui.log.consumables.none"));
         }
         else
         {
-            // 需求（GUI）：有帐篷时提示文字隐藏。
             tentInfo.setVisible(false);
             tentInfo.setText(Component.literal(""));
         }
@@ -173,7 +161,6 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
             public void updateElement(final int index, final Pane rowPane)
             {
                 final LogTradeEntry entry = moduleView.getTrades().get(index);
-                // 需求（备货供应比例）：商队领袖处于备货/等待出发（未消失）时，
                 // 每笔交易显示“售出品供应 A/B”（A/B 取供应比例最低的瓶颈成本）；
                 // 商队出发/交易后恢复显示“已完成 X/Y”。
                 final boolean preparing = !moduleView.isAway()
@@ -231,7 +218,6 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
         }
     }
 
-    /** 需求（消耗品）：把一类消耗品的堆叠列表渲染到对应前缀的图标槽位。 */
     private void updateConsumableIcons(final List<ItemStack> stacks, final String baseId, final int maxIcons)
     {
         for (int i = 0; i < maxIcons; i++)
@@ -281,7 +267,6 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
             hash = hash * 31 + Item.getId(torch.getItem());
             hash = hash * 31 + torch.getCount();
         }
-        // 需求（饥饿）：饥饿人数变化时刷新饱食度图标。
         hash = hash * 31 + moduleView.getHungryCount();
         hash = hash * 31 + (moduleView.getAwayPhase() == JobCaravanLeader.AwayPhase.TRADING
             ? moduleView.getAwayTradeTicks()
@@ -298,7 +283,6 @@ public class WindowCaravanLog extends AbstractModuleWindow<CaravanLogModuleView>
                 hash = hash * 31 + Item.getId(cost.getItem());
                 hash = hash * 31 + cost.getCount();
             }
-            // 需求（备货供应比例）：供应量变化时刷新界面。
             for (final int supplied : entry.supplied())
             {
                 hash = hash * 31 + supplied;

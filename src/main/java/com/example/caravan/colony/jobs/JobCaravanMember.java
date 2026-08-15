@@ -36,14 +36,12 @@ public class JobCaravanMember extends AbstractJob<EntityAIWorkCaravanMember, Job
         return ModModelTypes.COURIER_ID;
     }
 
-    /** 需求：与商队领袖一致——升级时按敏捷等级刷新移动速度加成（每级 +0.003）。 */
     @Override
     public void onLevelUp()
     {
         applySpeedBonus();
     }
 
-    /** 需求：敏捷 → 移动速度（与领袖/快递员一致）。 */
     public void applySpeedBonus()
     {
         getCitizen().getEntity().ifPresent(entity ->

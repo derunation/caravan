@@ -11,7 +11,6 @@ import net.minecraft.world.item.ItemStack;
 import java.util.List;
 
 /**
- * 需求（请求链可视化）："商队交易"中间请求——请求树显示
  * "1×商队交易：雕纹石砖"，参照工匠"1×配方：XXX"格式。
  */
 public class CaravanTradeRequest extends AbstractRequest<CaravanTradeRequestable>

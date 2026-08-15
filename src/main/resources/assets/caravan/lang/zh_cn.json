@@ -113,21 +113,7 @@
   "com.arxyt.colonypathingedition.core.easycolony.colony.read_mind.state.FOLLOW_LEADER": "跟随商队领袖",
   "com.arxyt.colonypathingedition.core.easycolony.colony.read_mind.state.VANISH_PREP": "前往商队消失位置",
   "com.arxyt.colonypathingedition.core.easycolony.colony.read_mind.state.VANISHED": "随商队消失中",
-  "com.caravan.debug.enabled": "商队调试模式已开启",
-  "com.caravan.debug.disabled": "商队调试模式已关闭",
-  "com.caravan.debug.action.acquire": "【商队】领取新订单",
-  "com.caravan.debug.action.prepare": "【商队】备货中",
-  "com.caravan.debug.action.depart": "【商队】出发（目标 %s, %s, %s）",
-  "com.caravan.debug.action.trade_summary": "【商队】与 %s 名村民进行 %s 项交易",
-  "com.caravan.debug.action.away": "【商队】消失（去程/回程）",
-  "com.caravan.debug.action.next_destination": "【商队】前往下一个目的地（%s, %s, %s）",
-  "com.caravan.debug.action.returning": "【商队】返回",
-  "com.caravan.debug.action.cancel": "【商队】已取消请求：%s",
-  "com.caravan.debug.action.cancel_satisfied": "【商队】物品已满足，已取消残留请求：%s",
   "item.caravan.caravan_tent": "商队帐篷",
-  "com.caravan.debug.action.tent_durability": "【商队】帐篷目前耐久度 %s/%s",
-  "com.caravan.debug.action.request": "【商队】已创建请求：%s x%s",
-  "com.caravan.debug.action.request_failed": "【商队】请求创建失败：%s x%s",
 
 
 

@@ -9,7 +9,6 @@ import net.minecraft.world.item.ItemStack;
 import java.util.Set;
 
 /**
- * 需求（请求链可视化）：商队小屋的"商队交易"中间请求——
  * 挂在原始按需请求下作为子请求，使信箱/请求树 GUI 显示
  * "1×商队交易：雕纹石砖"（参照工匠的"1×配方：XXX"格式）。
  */

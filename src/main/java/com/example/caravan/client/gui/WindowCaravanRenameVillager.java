@@ -12,7 +12,6 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.UUID;
 
 /**
- * 需求：村民重命名弹窗（lightbox）——输入名称后发送给服务器，
  * 空白名称表示清除自定义名称（恢复显示职业）。
  */
 public class WindowCaravanRenameVillager extends BOWindow implements ButtonHandler

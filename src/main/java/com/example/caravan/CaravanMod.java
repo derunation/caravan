@@ -22,7 +22,6 @@ import com.example.caravan.network.CaravanTradeQuantityMessage;
 import com.example.caravan.network.CaravanTradeModeMessage;
 import com.example.caravan.network.CaravanTradeOrderMessage;
 import com.example.caravan.network.CaravanStockMessage;
-import com.example.caravan.commands.CaravanCommands;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.api.colony.buildings.IBuilding;
@@ -66,13 +65,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Caravan - a test MineColonies addon.
+ * Minecolonies Caravans / 模拟殖民地商队附属。
  *
- * <p>Adds the Caravan Leader profession, the caravan hut and the Caravan Marker item.
- * The Caravan Leader picks up a marked order from the hut, requests the trade goods
- * through the MineColonies request system, walks towards the recorded village,
- * vanishes when leaving the colony, and reappears 1-10 in-game days later with the
- * trade results (mirroring the Nether Miner's disappear/reappear behaviour).</p>
+ * <p>为 MineColonies 增加商队小屋、商队领袖/成员/护卫职业、交易列表、
+ * 模拟旅行、请求系统联动与旅行地图联动等玩法。</p>
  */
 @Mod(CaravanMod.MODID)
 public final class CaravanMod
@@ -101,7 +97,7 @@ public final class CaravanMod
         ITEMS.register("blockhutcaravanleader",
             () -> new BlockItem(BLOCK_HUT_CARAVAN_LEADER.get(), new Item.Properties()));
 
-    /** The test item used to record a villager trade plus the village location. */
+    /** Item used to record a villager trade plus the village location. */
     public static final DeferredItem<CaravanMarkerItem> CARAVAN_MARKER =
         ITEMS.register("caravan_marker", () -> new CaravanMarkerItem(new Item.Properties()));
 
@@ -109,7 +105,7 @@ public final class CaravanMod
     public static final DeferredItem<ItemCaravanTent> CARAVAN_TENT =
         ITEMS.register("caravan_tent", () -> new ItemCaravanTent(new Item.Properties()));
 
-    /** 需求（创造标签页）：本 mod 专属“商队/Caravan”标签页（图标 = MC 原版绿宝石）。 */
+    /** 本 mod 专属“商队/Caravan”创造标签页（图标 = MC 原版绿宝石）。 */
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> CARAVAN_CREATIVE_TAB =
         CREATIVE_TABS.register("caravan", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.caravan"))
@@ -153,18 +149,10 @@ public final class CaravanMod
         modBus.addListener(ModJobs::registerJobs);
         modBus.addListener(CaravanMod::onNetworkRegistry);
         modBus.addListener(CaravanMod::onCommonSetup);
-        // RegisterCommandsEvent 是游戏总线事件（非 IModBusEvent），须注册到 NeoForge.EVENT_BUS。
-        NeoForge.EVENT_BUS.addListener(CaravanCommands::registerCommands);
         NeoForge.EVENT_BUS.addListener(CaravanMod::onVillagerJoinLevel);
     }
 
-    /**
-     * 修复需求1：未加载的交易目标村民无法获得模拟经验。
-     * minecolonies 的建筑模块只在自身区块加载时才 tick（onColonyTick），而目标村民
-     * 位于远处村庄——当玩家在村庄附近（村民已加载）而商队小屋区块未加载时，
-     * 经验永远不会结算。这里监听村民实体加入世界的时刻，无论小屋区块是否加载，
-     * 只要记录中有该村民且有待结算经验（pendingXp），立即补发并重录。
-     */
+    /** 未加载的交易目标村民在实体重新进入世界时补发模拟经验。 */
     private static void onVillagerJoinLevel(final EntityJoinLevelEvent event)
     {
         if (event.getLevel().isClientSide())
@@ -187,8 +175,6 @@ public final class CaravanMod
                 }
                 for (final IBuilding building : colony.getServerBuildingManager().getBuildings().values())
                 {
-                    // 修复bug：普通建筑没有 CaravanTradeModule，getFirstModuleOccurance 会抛异常
-                    // 并中断整个扫描，导致未加载村民的模拟经验永远无法结算。
                     if (!building.hasModule(CaravanTradeModule.class))
                     {
                         continue;
@@ -197,7 +183,6 @@ public final class CaravanMod
                     final VillagerTradeEntry entry = module.findVillager(villagerId);
                     if (entry != null && entry.pendingXp() > 0)
                     {
-                        // addVillagerTrades 内部会先结算 pendingXp，再以实体当前状态重录。
                         module.addVillagerTrades(villager, level);
                     }
                 }
@@ -209,26 +194,15 @@ public final class CaravanMod
         }
     }
 
-    /**
-     * 修复崩溃（Ticking player / SoundUtils NPE）：
-     * minecolonies 的 ModSoundEvents.CITIZEN_SOUND_EVENTS 只在静态初始化时收录
-     * ModJobs.getJobs()（minecolonies 内置职业的快照列表），自定义职业（caravan_leader）
-     * 永远不在其中。玩家碰撞商队领袖市民时，SoundUtils.playSoundAtCitizenWith 取职业声音表
-     * 得到 null 再调用 Map.get，抛出 NullPointerException。
-     * 这里在 CommonSetup 阶段为我们的职业补音效表——需求：使用快递员（deliveryman）的音效。
-     */
+    /** CommonSetup 阶段注册自定义请求工厂并为本职业补音效表。 */
     private static void onCommonSetup(final FMLCommonSetupEvent event)
     {
-        // 需求（请求系统接入）：注册商队小屋自定义请求解析方的工厂，
-        // 使请求系统能够持久化/重建该 resolver。
         try
         {
             StandardFactoryController.getInstance()
                 .registerNewFactory(new CaravanTradeRequestResolverFactory());
             StandardFactoryController.getInstance()
                 .registerNewFactory(new CaravanTradeRequestFactory());
-            // 需求（请求链可视化）：注册 requestable → request 类型映射，
-            // 使 createRequest(CaravanTradeRequestable) 能正确创建"商队交易"标记请求。
             RequestMappingHandler.registerRequestableTypeMapping(
                 CaravanTradeRequestable.class, CaravanTradeRequest.class);
         }
@@ -240,7 +214,6 @@ public final class CaravanMod
         {
             final Map<String, Map<EventType, List<Tuple<SoundEvent, SoundEvent>>>> soundMap =
                 ModSoundEvents.CITIZEN_SOUND_EVENTS;
-            // 需求：商队领袖与商队成员使用快递员的音效。
             final Map<EventType, List<Tuple<SoundEvent, SoundEvent>>> deliverymanSounds =
                 soundMap.get("deliveryman");
             soundMap.putIfAbsent("caravan_leader", deliverymanSounds);

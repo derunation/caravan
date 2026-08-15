@@ -27,14 +27,12 @@ public class CaravanSettingsModuleView extends AbstractBuildingModuleView
     @Override
     public Component getDesc()
     {
-        // 需求：原【设置】页面更名为【选区工具】页面。
         return Component.translatable("com.caravan.gui.scepter");
     }
 
     @Override
     public ResourceLocation getIconResourceLocation()
     {
-        // 需求：标签页图标更换为【卫兵塔】的【选取工具】标签页图标（scepter.png）。
         return ResourceLocation.fromNamespaceAndPath("minecolonies", "textures/gui/modules/scepter.png");
     }
 }

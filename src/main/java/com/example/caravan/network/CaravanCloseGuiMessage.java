@@ -10,7 +10,6 @@ import com.minecolonies.api.colony.buildings.views.IBuildingView;
 import com.minecolonies.api.colony.requestsystem.manager.IRequestManager;
 import com.minecolonies.api.colony.requestsystem.request.IRequest;
 import com.minecolonies.api.colony.requestsystem.request.RequestState;
-import com.minecolonies.api.colony.requestsystem.requestable.IDeliverable;
 import com.minecolonies.api.colony.requestsystem.token.IToken;
 import com.minecolonies.core.network.messages.server.AbstractBuildingServerMessage;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -60,15 +59,12 @@ public class CaravanCloseGuiMessage extends AbstractBuildingServerMessage<Buildi
         {
             return;
         }
-        // 需求（GUI 退出生效）：关闭 GUI 时一次性应用交易模式/数量调整，
-        // 此后商队 AI 才按新列表创建订单。
         module.applyPendingChanges();
         final JobCaravanLeader job = findLeader(building);
         if (job == null || job.getStatus() != JobCaravanLeader.CaravanStatus.WAITING_ITEMS)
         {
             return;
         }
-        // 需求（0.4.18 回退）：清空小屋对请求系统打开的“备货售出品请求”（Stack 类型）。
         final IRequestManager manager = colony.getRequestManager();
         if (manager == null)
         {
@@ -87,9 +83,6 @@ public class CaravanCloseGuiMessage extends AbstractBuildingServerMessage<Buildi
                     {
                         continue;
                     }
-                    // 需求（bug 修复）：消耗品请求（商队帐篷/火把）是长期备货需求，
-                    // 不应被“关闭 GUI 清空备货”取消——否则火把请求被取消后
-                    // 商队外出期间不再重建，仓库中的火把永远不会被运送。
                     final var probe =
                         (com.minecolonies.api.colony.requestsystem.requestable.IDeliverable) request.getRequest();
                     final var item = probe.getResult();
@@ -99,11 +92,6 @@ public class CaravanCloseGuiMessage extends AbstractBuildingServerMessage<Buildi
                     {
                         continue;
                     }
-                    com.example.caravan.CaravanMod.LOGGER.info(
-                        "Caravan: 关闭 GUI 取消备货售出品请求 {} ({})",
-                        String.valueOf(token),
-                        request.getRequest() instanceof IDeliverable deliverable
-                            ? deliverable.getResult().getHoverName().getString() : "?");
                     manager.updateRequestState(token, RequestState.CANCELLED);
                 }
                 catch (final Exception ignored)

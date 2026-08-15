@@ -87,11 +87,8 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
         this.villagerList = findPaneOfTypeByID(LIST_VILLAGERS, ScrollingList.class);
         this.tradeList = findPaneOfTypeByID(LIST_TRADES, ScrollingList.class);
         findPaneOfTypeByID(BUTTON_BACK, Button.class).setHandler(button -> backToVillagers());
-        // 需求：删除当前村民及其全部交易，并返回村民列表主页面。
         findPaneOfTypeByID(BUTTON_DELETE, Button.class).setHandler(button -> deleteVillager());
-        // 需求：重命名当前村民——弹出输入框，修改后替换职业文本显示。
         findPaneOfTypeByID(BUTTON_RENAME, Button.class).setHandler(button -> renameVillager());
-        // 需求（总览）：右下角【总览】按钮——打开激活交易顺序窗口。
         findPaneOfTypeByID(BUTTON_OVERVIEW, Button.class).setHandler(button -> openOverview());
     }
 
@@ -119,7 +116,6 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
     public void onUpdate()
     {
         super.onUpdate();
-        // 需求（总览）：无激活交易时【总览】按钮置灰；有激活交易时恢复可点。
         updateOverviewButton();
         // 服务器数据变化后（建筑视图同步），刷新当前页。
         if (selectedVillager < 0)
@@ -131,7 +127,6 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
         }
         else if (lastNamesHash != namesHash())
         {
-            // 需求：重命名后即时刷新村民信息页标题（主页面由 villagersHash 刷新）。
             lastNamesHash = namesHash();
             refreshVillagerTitle();
         }
@@ -143,7 +138,6 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
         }
     }
 
-    /** 需求（总览）：无激活交易时【总览】按钮置灰。 */
     private void updateOverviewButton()
     {
         final Button overview = findPaneOfTypeByID(BUTTON_OVERVIEW, Button.class);
@@ -165,7 +159,6 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
         findPaneOfTypeByID(PAGE_TRADES, View.class).setVisible(true);
     }
 
-    /** 需求：【删除】按钮——从小屋中删除当前村民及其所有交易，返回主页面。 */
     private void deleteVillager()
     {
         if (selectedVillager < 0 || selectedVillager >= moduleView.getVillagers().size())
@@ -177,7 +170,6 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
         backToVillagers();
     }
 
-    /** 需求：【重命名】按钮——弹出输入框，修改村民自定义名称。 */
     private void renameVillager()
     {
         if (selectedVillager < 0 || selectedVillager >= moduleView.getVillagers().size())
@@ -189,7 +181,6 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
         new WindowCaravanRenameVillager(buildingView, villager.villagerId(), current).openAsLayer();
     }
 
-    /** 需求（总览）：打开激活交易顺序窗口（以图层方式弹出）。 */
     private void openOverview()
     {
         new WindowCaravanOverview(buildingView, moduleView).openAsLayer();
@@ -214,12 +205,10 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
             {
                 final VillagerTradeEntry villager = moduleView.getVillagers().get(index);
                 final boolean hasActive = hasActiveTrades(index);
-                // 需求：第一行从左到右：职业/名称  距离/传送石碑名称。
                 final Text info = rowPane.findPaneOfTypeByID("villagerInfo", Text.class);
                 info.setText(
                     Component.translatable("com.caravan.gui.trades.villager_name_dist",
                         villagerLabel(villager), locationLabel(villager)));
-                // 需求（大师级）：村民达到大师级（满级）时不显示经验进度与附魔瓶图标。
                 final Text xp = rowPane.findPaneOfTypeByID("villagerXp", Text.class);
                 final ItemIcon levelIcon = rowPane.findPaneOfTypeByID("levelIcon", ItemIcon.class);
                 levelIcon.setEnabled(false);
@@ -231,23 +220,19 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
                 }
                 else
                 {
-                    // 需求：第二行合并等级与经验进度（示例：新手 8/10）。
                     final int[] progress = xpProgress(villager);
                     xp.setText(
                         Component.translatable("com.caravan.gui.trades.level_xp",
                             Component.translatable("merchant.level." + villager.level()),
                             progress[0], progress[1]));
-                    // 需求：经验已满时在绿宝石左侧显示附魔之瓶（悬停提示见 XML tooltip）。
                     final boolean maxed = isXpMaxed(villager);
                     levelIcon.setVisible(maxed);
                     levelIcon.setItem(maxed ? new ItemStack(Items.EXPERIENCE_BOTTLE) : ItemStack.EMPTY);
                 }
-                // 需求：有激活交易的村民以 MC 原版绿宝石图标代替“交易”文本。
                 final ItemIcon activeIcon = rowPane.findPaneOfTypeByID("activeIcon", ItemIcon.class);
                 activeIcon.setEnabled(false);
                 activeIcon.setVisible(hasActive);
                 activeIcon.setItem(hasActive ? new ItemStack(Items.EMERALD) : ItemStack.EMPTY);
-                // 需求：整行可点击——文字/图标面板若保持可点会拦截按钮点击（BlockUI 中
                 // 顶层子元素优先接收点击），因此禁用文字并统一为黑色渲染。
                 makeTextNonClickable(info);
                 makeTextNonClickable(xp);
@@ -266,12 +251,10 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
         text.setColors(0xFF000000, 0xFF000000, 0xFF000000);
     }
 
-    /** 需求：村民位置显示——目标 100 格内有【已激活】的 Waystone 才显示名称，否则显示小屋距离。 */
     private Component locationLabel(final VillagerTradeEntry villager)
     {
         if (villager.waystoneUid() != null && isWaystoneActivatedClient(villager.waystoneUid()))
         {
-            // 需求：未命名 Waystone 用占位标记，本地化显示“传送石碑/Waystone”。
             if (villager.waystoneName().equals(VillagerTradeEntry.WAYSTONE_UNNAMED))
             {
                 return Component.translatable("com.caravan.gui.trades.waystone");
@@ -284,7 +267,6 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
     }
 
     /**
-     * 需求：未激活的传送石碑不显示名称——按当前玩家的“已激活 Waystone”列表（UUID）判断。
      * 该数据由 Waystones 模组同步到客户端（其自身的传送界面也依赖它）。
      */
     private static boolean isWaystoneActivatedClient(final UUID waystoneUid)
@@ -337,7 +319,6 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
             return;
         }
         final VillagerTradeEntry villager = moduleView.getVillagers().get(selectedVillager);
-        // 需求：初始文本分两行——第一行职业/名称，第二行坐标。
         findPaneOfTypeByID("pageTitle", Text.class).setText(villagerLabel(villager));
         findPaneOfTypeByID("pageSubTitle", Text.class).setText(
             Component.translatable("com.caravan.gui.trades.coords",
@@ -346,7 +327,6 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
                 villager.workstationPos().getZ()));
     }
 
-    /** 需求：村民显示名——有自定义名称时显示名称，否则显示职业文本。 */
     private Component villagerLabel(final VillagerTradeEntry villager)
     {
         final String customName = moduleView.getCustomName(villager.villagerId());
@@ -420,7 +400,6 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
 
         // 数量选择模块始终可用（不再灰化）——超出范围时由服务器/本地钳制到 1..maxUses。
         final int quantity = moduleView.getQuantity(flatIndex);
-        // 需求（按需交易）：按需模式数量由请求缺口自动决定，显示“自动”并禁用数量按钮。
         final boolean onDemand = moduleView.getMode(flatIndex) == CaravanTradeModule.TradeMode.ON_DEMAND;
         rowPane.findPaneOfTypeByID("qty", Text.class).setText(onDemand
             ? Component.translatable("com.caravan.gui.trades.qty.auto")
@@ -656,10 +635,8 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
             hash = hash * 31 + entry.xpEarned();
             hash = hash * 31 + entry.pendingXp();
             hash = hash * 31 + entry.offers().size();
-            // 需求：Waystone 名称变化时也触发列表刷新（名称/距离切换）。
             hash = hash * 31 + (entry.waystoneUid() != null ? entry.waystoneUid().hashCode() : 0);
             hash = hash * 31 + (entry.waystoneName() != null ? entry.waystoneName().hashCode() : 0);
-            // 需求：自定义名称变化时刷新列表。
             final String customName = moduleView.getCustomName(entry.villagerId());
             hash = hash * 31 + (customName != null ? customName.hashCode() : 0);
             hash = hash * 31 + (hasActiveTrades(i) ? 1 : 0);
