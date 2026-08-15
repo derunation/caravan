@@ -56,9 +56,9 @@ public final class ModBuildings
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanLeaderWork",
                 () -> new WorkerBuildingModule(CaravanMod.JOB_CARAVAN_LEADER, Skill.Agility, Skill.Intelligence, false, building -> 1),
                 () -> WorkerBuildingModuleView::new))
-            // 可与领袖同时雇佣，数量上限 = 小屋等级（1-5），属性与领袖一致。
+            // 可与领袖同时雇佣，数量上限 = 小屋等级 - 1（0-4），属性与领袖一致。
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanMemberWork",
-                () -> new WorkerBuildingModule(CaravanMod.JOB_CARAVAN_MEMBER, Skill.Agility, Skill.Intelligence, false, building -> building.getBuildingLevel()),
+                () -> new WorkerBuildingModule(CaravanMod.JOB_CARAVAN_MEMBER, Skill.Agility, Skill.Intelligence, false, building -> Math.max(0, building.getBuildingLevel() - 1)),
                 () -> WorkerBuildingModuleView::new))
             .addBuildingModuleProducer(new BuildingEntry.ModuleProducer<>("caravanTrades",
                 () -> new CaravanTradeModule(),
