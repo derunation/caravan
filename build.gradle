@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '1.0.23'
 }
 
-version = '1.0.0'
+version = '1.0.1'
 group = 'com.example'
 
 base {
@@ -90,10 +90,4 @@ dependencies {
     if (eclipticSeasonsJar.exists()) {
         implementation files(eclipticSeasonsJar)
     }
-}
-
-tasks.named('jar', Jar) {
-    // Leftover from the old pack layout (file is locked and cannot be deleted).
-    // Exclude it so the shipped jar never contains the empty "Trade Post" pack.
-    exclude 'blueprints/caravan/Trade Post/**'
 }

@@ -2,11 +2,11 @@
   "version": 3,
   "pack-format": 1,
   "name": "Caravan",
-  "icon": "tradepost.png",
+  "icon": "caravan.png",
   "authors": [
-    "Codex Test"
+    "Deepseek v4 flash 0731"
   ],
-  "desc": "Caravan test style pack with the Caravan Leader hut.",
+  "desc": "Caravan style pack with the Caravan Leader hut.",
   "mods": [
     "structurize",
     "caravan"

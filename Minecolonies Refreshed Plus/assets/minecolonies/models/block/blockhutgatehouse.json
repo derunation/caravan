@@ -3,10 +3,10 @@
   "ambientocclusion": false,
   "render_type": "cutout",
   "textures": {
-    "back": "minecolonies:block/guard_tower_hut_back",
-    "bottom": "minecolonies:block/guard_tower_hut_top",
-    "front": "minecolonies:block/guard_tower_hut_front",
-    "side": "minecolonies:block/guard_tower_hut_side",
+    "back": "minecolonies:block/gate_house_hut_back",
+    "bottom": "minecolonies:block/gate_house_hut_top",
+    "front": "minecolonies:block/gate_house_hut_front",
+    "side": "minecolonies:block/gate_house_hut_side",
     "sword": "item/golden_sword",
     "particle": "minecolonies:block/hut_base_top",
     "top": "minecolonies:block/hut_base_top"

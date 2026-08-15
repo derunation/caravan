@@ -12,8 +12,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * {@code minecolonies:colonybuilding} block entity type in its two-argument
  * constructor, which is invalid for blocks outside MineColonies and crashes with
  * "Invalid block entity ... got Block{caravan:blockhutcaravanleader}". This
- * subclass passes our own registered type instead (same pattern as mctradepost's
- * {@code MCTPTileEntityColonyBuilding}).</p>
+ * subclass passes our own registered type instead.</p>
  */
 public class TileEntityCaravanLeader extends TileEntityColonyBuilding
 {
