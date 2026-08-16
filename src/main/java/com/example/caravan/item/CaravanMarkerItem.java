@@ -4,6 +4,7 @@ import com.example.caravan.CaravanMod;
 import com.example.caravan.block.BlockHutCaravanLeader;
 import com.example.caravan.colony.buildings.BuildingCaravanLeader;
 import com.example.caravan.colony.buildings.modules.CaravanTradeModule;
+import com.example.caravan.colony.buildings.modules.VillagerTradeEntry;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 import net.minecraft.core.BlockPos;
@@ -11,6 +12,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
@@ -18,6 +22,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
 
 import java.util.List;
 
@@ -52,6 +57,56 @@ public class CaravanMarkerItem extends Item
             return InteractionResult.SUCCESS;
         }
         return InteractionResult.PASS;
+    }
+
+    /**
+     * 潜行 + 右键空气：给予绑定小屋已记录的全部村民发光效果
+     * （参照 Minecolonies 本体的“工人你在哪”卷轴，用存储的村民 UUID 定位实体）。
+     */
+    @Override
+    public InteractionResultHolder<ItemStack> use(final Level level, final Player player, final InteractionHand hand)
+    {
+        if (level.isClientSide || !player.isShiftKeyDown())
+        {
+            return InteractionResultHolder.pass(player.getItemInHand(hand));
+        }
+
+        final ItemStack stack = player.getItemInHand(hand);
+        final BlockPos hutPos = stack.get(CaravanMod.BOUND_HUT);
+        if (hutPos == null)
+        {
+            player.displayClientMessage(Component.translatable("item.caravan.caravan_marker.not_bound"), true);
+            return InteractionResultHolder.fail(player.getItemInHand(hand));
+        }
+
+        final ServerLevel serverLevel = (ServerLevel) level;
+        final IColony colony = IColonyManager.getInstance().getColonyByPosFromWorld(serverLevel, hutPos);
+        final BuildingCaravanLeader building = colony == null
+            ? null
+            : colony.getServerBuildingManager().getBuilding(hutPos, BuildingCaravanLeader.class);
+        final CaravanTradeModule module = building == null
+            ? null
+            : building.getFirstModuleOccurance(CaravanTradeModule.class);
+        if (module == null)
+        {
+            player.displayClientMessage(Component.translatable("item.caravan.caravan_marker.not_bound"), true);
+            return InteractionResultHolder.fail(player.getItemInHand(hand));
+        }
+
+        int stored = 0;
+        int glowing = 0;
+        for (final VillagerTradeEntry entry : module.getVillagers())
+        {
+            stored++;
+            if (serverLevel.getEntity(entry.villagerId()) instanceof Villager villager)
+            {
+                villager.addEffect(new MobEffectInstance(MobEffects.GLOWING, 6000));
+                glowing++;
+            }
+        }
+        player.displayClientMessage(Component.translatable(
+            "item.caravan.caravan_marker.highlighted", glowing, stored), true);
+        return InteractionResultHolder.success(player.getItemInHand(hand));
     }
 
     @Override
@@ -121,5 +176,6 @@ public class CaravanMarkerItem extends Item
         tooltip.add(Component.translatable("item.caravan.caravan_marker.tooltip.bound",
             boundHut.getX(), boundHut.getY(), boundHut.getZ()));
         tooltip.add(Component.translatable("item.caravan.caravan_marker.tooltip.sneak_hint"));
+        tooltip.add(Component.translatable("item.caravan.caravan_marker.tooltip.highlight_hint"));
     }
 }
