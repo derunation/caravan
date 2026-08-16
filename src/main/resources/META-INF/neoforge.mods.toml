@@ -5,7 +5,7 @@ license = "MIT"
 [[mods]]
 modId = "caravan"
     version = "1.0.1"
-displayName = "Minecolonies Caravans/模拟殖民地商队附属"
+displayName = "Minecolonies Caravans"
 description = '''A MineColonies addon that adds the Caravan Hut, the Caravan Leader/Member/Guard professions and a full caravan trading system:
 record villager trades with the Caravan Marker, prepare goods through the request system, simulate long-distance trips with camping and night travel,
 fulfill colony requests via on-demand trades, and show the caravan on JourneyMap while travelling.'''
@@ -17,34 +17,34 @@ config = "caravan.mixins.json"
 [[dependencies.caravan]]
 modId = "neoforge"
 type = "required"
-versionRange = "[21.1.0,22.0.0)"
+versionRange = "[21.1.235,22.0.0)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.caravan]]
 modId = "minecolonies"
 type = "required"
-versionRange = "[1.1.0,)"
+versionRange = "[1.1.1285-1.21.1,)"
 ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies.caravan]]
 modId = "structurize"
 type = "required"
-versionRange = "[1.0.0,)"
+versionRange = "[1.0.810-1.21.1-snapshot,)"
 ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies.caravan]]
 modId = "domum_ornamentum"
 type = "required"
-versionRange = "[1.0.0,)"
+versionRange = "[1.0.223-snapshot,)"
 ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies.caravan]]
 modId = "blockui"
 type = "required"
-versionRange = "[1.0.0,)"
+versionRange = "[1.0.199-1.21.1-snapshot,)"
 ordering = "AFTER"
 side = "BOTH"
