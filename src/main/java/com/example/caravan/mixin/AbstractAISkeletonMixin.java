@@ -53,16 +53,19 @@ public abstract class AbstractAISkeletonMixin
         {
             if (leader != null && !leader.isInvisible())
             {
-                // 穿越殖民地：领袖现身步行 → 卫兵传送到领袖旁并现身（跟随穿越）。
-                caravan$teleportNear(leader);
+                // 穿越殖民地：领袖现身步行。卫兵若仍在隐形（从模拟消失点来到穿越入口），
+                // 一次性传送到领袖旁并现身；之后放行 AI，按正常殖民地内跟随（寻路）行动。
                 if (worker.isInvisible())
                 {
+                    caravan$teleportNear(leader);
+                    worker.getNavigation().stop();
                     worker.setInvisible(false);
                     worker.setInvulnerable(false);
                     caravan$clearThreats();
                     caravan$restoreEquipment();
                 }
-                ci.cancel();
+                caravan$scanAndThreaten();
+                // 不取消 tick：由 decide→follow 正常寻路跟随领袖，而非每刻传送。
                 return;
             }
             if (worker.isInvisible())
