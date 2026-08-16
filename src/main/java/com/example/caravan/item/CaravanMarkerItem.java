@@ -23,6 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.HitResult;
 
 import java.util.List;
 
@@ -70,6 +71,11 @@ public class CaravanMarkerItem extends Item
         {
             return InteractionResultHolder.pass(player.getItemInHand(hand));
         }
+        // 仅对点击空气生效：视线命中的是实体（如村民）时不发光。
+        if (player.pick(5.0D, 1.0F, false).getType() == HitResult.Type.ENTITY)
+        {
+            return InteractionResultHolder.pass(player.getItemInHand(hand));
+        }
 
         final ItemStack stack = player.getItemInHand(hand);
         final BlockPos hutPos = stack.get(CaravanMod.BOUND_HUT);
@@ -100,7 +106,7 @@ public class CaravanMarkerItem extends Item
             stored++;
             if (serverLevel.getEntity(entry.villagerId()) instanceof Villager villager)
             {
-                villager.addEffect(new MobEffectInstance(MobEffects.GLOWING, 6000));
+                villager.addEffect(new MobEffectInstance(MobEffects.GLOWING, 1200));
                 glowing++;
             }
         }
@@ -116,10 +122,16 @@ public class CaravanMarkerItem extends Item
         final LivingEntity target,
         final InteractionHand hand)
     {
-        if (!(target instanceof Villager villager) || player.level().isClientSide || !player.isShiftKeyDown())
+        if (!(target instanceof Villager) || !player.isShiftKeyDown())
         {
             return InteractionResult.PASS;
         }
+        if (player.level().isClientSide)
+        {
+            // 客户端消耗本次交互，阻止继续回退到 use()（否则潜行点击村民也会触发发光）。
+            return InteractionResult.SUCCESS;
+        }
+        final Villager villager = (Villager) target;
 
         final BlockPos hutPos = stack.get(CaravanMod.BOUND_HUT);
         if (hutPos == null)
