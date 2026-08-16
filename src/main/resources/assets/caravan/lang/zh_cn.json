@@ -19,7 +19,6 @@
   "caravan:caravan_leader.skills.desc": "敏捷提高移动速度；智力降低每笔交易所需时间。",
   "com.caravan.job.caravan_member": "商队成员",
   "com.caravan.job.caravan_member.desc": "跟随商队领袖行动，为商队携带额外的货物。",
-  "caravan:caravan_menber.job.desc": "跟随商队领袖进行交易",
   "caravan:caravan_member.job.desc": "跟随商队领袖进行交易",
   "com.caravan.gui.guard": "护卫",
   "com.caravan.gui.guard.empty": "将卫兵塔的工作模式设置为“商队护卫”后，卫兵会出现在此处，选中后开始护卫商队。",

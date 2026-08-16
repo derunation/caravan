@@ -19,7 +19,6 @@
   "caravan:caravan_leader.skills.desc": "Agility increases movement speed; Intelligence reduces the time each trade takes.",
   "com.caravan.job.caravan_member": "Caravan Member",
   "com.caravan.job.caravan_member.desc": "Follows the Caravan Leader and carries extra goods for the caravan.",
-  "caravan:caravan_menber.job.desc": "Follows the Caravan Leader to trade.",
   "caravan:caravan_member.job.desc": "Follows the Caravan Leader to trade.",
   "com.caravan.gui.guard": "Guards",
   "com.caravan.gui.guard.empty": "Guards appear here once their guard tower is set to \"Caravan Escort\" mode; select one to start escorting the caravan.",
