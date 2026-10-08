@@ -5,7 +5,7 @@
 ## 中文说明
 
 ### 核心玩法
-- **商队小屋**：殖民地新增建筑，提供【交易列表】【总览】【日志】【菜单】【设置】【选区工具】【护卫】等标签页。
+- **商队小屋**：殖民地新增建筑，提供【交易列表】【总览】【日志】【菜单】【设置】【选区工具】【护卫】等标签页。工作台合成：任意木板 + 建筑工具（Structurize）+ 绿宝石，图案 PBP/PEP/PPP。
 - **商队领袖与成员**：由小屋工作模块分配。领袖按照交易列表依次出行，成员作为扩展背包随行并参与交易提速。
 - **商队护卫**：复用卫兵塔的【骑士】等卫兵职业，将卫兵塔【工作模式】设为【商队护卫】并在小屋【护卫】页选中后生效：商队未出发时驻守小屋，出发后跟随领袖并索敌战斗；战斗时领袖停等，卫兵归队后继续行程。每名护卫使模拟旅行速度 +10%。
 - **模拟旅行**：离开殖民地范围后商队进入隐形模拟状态，按距离推进去程/交易/回程；途中支持扎营/夜行/露宿、火把与食物消耗、无帐篷过夜的患病风险。
@@ -32,7 +32,7 @@
 ## English Description
 
 ### Core Features
-- **Caravan Hut**: A new MineColonies building with tabs for Trade List, Overview, Log, Menu, Settings, Scepter Tool, and Guards.
+- **Caravan Hut**: A new MineColonies building with tabs for Trade List, Overview, Log, Menu, Settings, Scepter Tool, and Guards. Crafted in a vanilla crafting table from any planks, a Build Tool (Structurize), and an emerald, using the pattern PBP/PEP/PPP.
 - **Caravan Leader & Members**: Assigned from the hut's worker module. The leader executes the trade list trip by trip, while members act as extra inventory space and speed up trading.
 - **Caravan Guards**: Reuse guard tower professions (e.g., Knight). Set the tower's work mode to "Caravan Guard" and select it in the hut's Guard tab: guards garrison the hut while the caravan is home, follow the leader and fight enemies while travelling; the leader waits during combat and resumes once guards regroup. Each guard boosts simulated travel speed by 10%.
 - **Simulated Travel**: Outside the colony border, the caravan enters an invisible simulated state, progressing through outbound / trading / return phases, with camping, night travel, torch & food consumption, and illness risk from sleeping without a tent.

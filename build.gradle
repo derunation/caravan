@@ -69,7 +69,7 @@ dependencies {
     }
     // Waystones（仅编译期 + 运行期可选）：交易列表页面把目标位置 100 格内的
     // Waystone 名称作为“距离”显示；未安装 Waystones 时自动降级为距离数字。
-    def waystonesJar = file('F:/MC/Instances/Rome1.21.1/mods/waystones-neoforge-1.21.1-21.1.41.jar')
+    def waystonesJar = file('F:/MC/Instances/Rome1.21.1/mods/waystones-neoforge-1.21.1-21.1.42.jar')
     if (waystonesJar.exists()) {
         implementation files(waystonesJar)
     }
@@ -86,7 +86,7 @@ dependencies {
     }
     // EclipticSeasons（仅编译期 + 运行期可选）：按季节动态修改白天长度，
     // 商队夜间赶路的“日落时刻”使用其 API 计算（未安装时回退原版日落 12000）。
-    def eclipticSeasonsJar = file('F:/MC/Instances/Rome1.21.1/mods/EclipticSeasons-1.21.1-neoforge-0.14.4.jar')
+    def eclipticSeasonsJar = file('F:/MC/Instances/Rome1.21.1/mods/EclipticSeasons-1.21.1-neoforge-0.14.5.jar')
     if (eclipticSeasonsJar.exists()) {
         implementation files(eclipticSeasonsJar)
     }

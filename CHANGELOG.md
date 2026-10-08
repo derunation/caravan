@@ -2,6 +2,7 @@
 
 ## 1.0.1
 
+- 新增【商队小屋】工作台合成配方：任意木板 + 建筑工具（Structurize）+ 绿宝石，图案 PBP/PEP/PPP。
 - 正式更名：Minecolonies Caravans / 模拟殖民地商队附属。
 - 清理开发期诊断日志、调试命令与冗余注释；更新作者信息与展示名称。
 - Renamed to Minecolonies Caravans; removed development diagnostics and stale notes.
