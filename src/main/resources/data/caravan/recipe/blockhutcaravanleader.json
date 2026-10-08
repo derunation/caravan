@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "structurize:sceptergold"
+    },
+    "E": {
+      "item": "minecraft:emerald"
+    },
+    "P": {
+      "tag": "minecraft:planks"
+    }
+  },
+  "pattern": [
+    "PBP",
+    "PEP",
+    "PPP"
+  ],
+  "result": {
+    "count": 1,
+    "id": "caravan:blockhutcaravanleader"
+  }
+}
