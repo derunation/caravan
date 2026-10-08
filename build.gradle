@@ -48,11 +48,14 @@ dependencies {
     // Structurize / BlockUI come from the LDT Team Maven.
     // JEI is excluded: the LDT Maven only hosts an old JEI build, and MineColonies
     // requires a newer one. JEI is optional for both MineColonies and this mod.
-    // Prefer the official Structurize build from the local game instance when
-    // available (the Maven beta crashes on dedicated servers).
-    def officialStructurize = file('F:/MC/Instances/Rome1.21.1/mods/structurize-1.0.832-1.21.1.jar')
-    if (officialStructurize.exists()) {
-        implementation files(officialStructurize)
+    // Prefer the reference Structurize jar kept next to the project (same pattern as
+    // the MineColonies reference jar above) so the build no longer depends on an
+    // absolute path inside one machine's game instance. NOTE: the declared runtime
+    // floor in neoforge.mods.toml is [1.0.810-1.21.1-snapshot,) - compiling against a
+    // newer Structurize is fine because this mod references no structurize classes.
+    def referenceStructurize = rootProject.file('../参考/structurize-1.0.832-1.21.1.jar')
+    if (referenceStructurize.exists()) {
+        implementation files(referenceStructurize)
     } else {
         implementation("com.ldtteam:structurize:1.21.1-1.0.746-beta") {
             exclude group: 'mezz.jei'

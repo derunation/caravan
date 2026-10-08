@@ -28,10 +28,14 @@ versionRange = "[1.1.1285-1.21.1,)"
 ordering = "AFTER"
 side = "BOTH"
 
+# Structurize 只被“配方里的 structurize:sceptergold 物品 ID”和蓝图包声明引用，
+# 本模组不调用任何 structurize 类（逐版本核对过字节码：只有 blockui 类引用，
+# 且 1.0.2/1.0.3 的 blockui 引用集合完全一致），因此下限保持 1.0.2 的水平，
+# 不在 1.0.3 里抬高，以免连带排除旧版 Structurize 整合包的测试者。
 [[dependencies.caravan]]
 modId = "structurize"
 type = "required"
-versionRange = "[1.0.832-1.21.1,)"
+versionRange = "[1.0.810-1.21.1-snapshot,)"
 ordering = "AFTER"
 side = "BOTH"
 
