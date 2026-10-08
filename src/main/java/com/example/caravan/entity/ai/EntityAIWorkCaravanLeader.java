@@ -2881,16 +2881,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         // 请求——否则快递员会把小屋里的按需成果取走，导致小屋目标物永远凑不齐。
         if (tradeModule == null || !tradeModule.hasPendingOnDemandRequests())
         {
-            try
-            {
-                building.createPickupRequest(
-                    com.minecolonies.api.colony.requestsystem.requestable.deliveryman.AbstractDeliverymanRequestable
-                        .getMaxBuildingPriority(false));
-            }
-            catch (final Exception ignored)
-            {
-                // 取货请求失败不阻塞回归流程（如无快递员/仓库等）。
-            }
+            requestHutPickup();
         }
 
         if (job.hasPendingTripTrades() && hasAnyCaravanSpace())
@@ -2904,6 +2895,77 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             finishModule.setTripActive(false);
         }
         return AIWorkerState.IDLE;
+    }
+
+    /**
+     * 让快递员来小屋取货（把成果送进仓库/殖民地）。
+     *
+     * <p>MineColonies 在 1.1.1285 之后修改了该 API：旧签名为
+     * {@code createPickupRequest(int priority)}，新签名为
+     * {@code createPickupRequest(int qty, boolean force)}（以 {@code force=true}
+     * 达到旧的“使用最高建筑优先级”语义）。这里按运行时实际存在的重载调用，
+     * 使本模组同时兼容 1.1.1285 与 1.1.1403+，避免 {@link NoSuchMethodError}
+     * （它是 {@link Error} 而非 {@link Exception}，不会被普通 try/catch 拦住，
+     * 会直接打死 AI tick 与服务端线程）。</p>
+     */
+    private void requestHutPickup()
+    {
+        try
+        {
+            final Class<?> buildingClass = building.getClass();
+            final java.lang.reflect.Method twoArg =
+                lookupMethod(buildingClass, "createPickupRequest", int.class, boolean.class);
+            if (twoArg != null)
+            {
+                // 新版：qty=1 触发取货，force=true → getMaxBuildingPriority(true)，
+                // 与旧版“用最高建筑优先级”的用法等价。
+                twoArg.invoke(building, 1, Boolean.TRUE);
+                return;
+            }
+            final java.lang.reflect.Method oneArg =
+                lookupMethod(buildingClass, "createPickupRequest", int.class);
+            if (oneArg != null)
+            {
+                // 旧版（≤1.1.1285）：参数即优先级。
+                oneArg.invoke(building,
+                    com.minecolonies.api.colony.requestsystem.requestable.deliveryman.AbstractDeliverymanRequestable
+                        .getMaxBuildingPriority(false));
+                return;
+            }
+            CaravanMod.LOGGER.debug("Caravan: 未找到 createPickupRequest，跳过取货请求");
+        }
+        catch (final Throwable ignored)
+        {
+            // 取货请求失败不阻塞回归流程（如无快递员/仓库等）。
+        }
+    }
+
+    /** 沿继承链查找方法（方法可能是从父类继承的，与 MineColonies 版本的继承层级无关）。 */
+    private static java.lang.reflect.Method lookupMethod(
+        final Class<?> type, final String name, final Class<?>... parameterTypes)
+    {
+        Class<?> current = type;
+        while (current != null && current != Object.class)
+        {
+            try
+            {
+                final java.lang.reflect.Method method = current.getDeclaredMethod(name, parameterTypes);
+                try
+                {
+                    method.setAccessible(true);
+                }
+                catch (final RuntimeException ignored)
+                {
+                    // 无法提升可访问性时按原样返回，由 invoke 抛出的异常统一处理。
+                }
+                return method;
+            }
+            catch (final NoSuchMethodException ignored)
+            {
+                current = current.getSuperclass();
+            }
+        }
+        return null;
     }
 
     /** 选择下一个订单目标：优先“背包齐备可立即交易”→ 其次“产出被其它订单消耗”的订单 → 最近。 */

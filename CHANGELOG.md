@@ -1,5 +1,14 @@
 # 更新日志 / Changelog
 
+## 1.0.3
+
+- 修复致命崩溃：MineColonies 新版把 `createPickupRequest(int)` 改为 `createPickupRequest(int, boolean)`，旧签名调用会在商队交易完成返回小屋时抛 `NoSuchMethodError`（属 Error，旧 try/catch 拦不住）并击穿服务端线程；现按运行时实际存在的重载调用，同时兼容 1.1.1285 与 1.1.1403+。
+- 编译依赖同步实例：Structurize 1.0.810-snapshot → 1.0.832（minecolonies 最低依赖仍为 1.1.1285）。
+
+## 1.0.2
+
+- 新增【商队小屋】工作台合成配方：任意木板 + 建筑工具（Structurize）+ 绿宝石，图案 PBP/PEP/PPP。
+
 ## 1.0.1
 
 - 新增【商队小屋】工作台合成配方：任意木板 + 建筑工具（Structurize）+ 绿宝石，图案 PBP/PEP/PPP。

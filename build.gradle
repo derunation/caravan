@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '1.0.23'
 }
 
-version = '1.0.1'
+version = '1.0.3'
 group = 'com.example'
 
 base {
@@ -50,7 +50,7 @@ dependencies {
     // requires a newer one. JEI is optional for both MineColonies and this mod.
     // Prefer the official Structurize build from the local game instance when
     // available (the Maven beta crashes on dedicated servers).
-    def officialStructurize = file('F:/MC/Instances/Rome1.21.1/mods/structurize-1.0.810-1.21.1-snapshot.jar')
+    def officialStructurize = file('F:/MC/Instances/Rome1.21.1/mods/structurize-1.0.832-1.21.1.jar')
     if (officialStructurize.exists()) {
         implementation files(officialStructurize)
     } else {
@@ -69,12 +69,12 @@ dependencies {
     }
     // Waystones（仅编译期 + 运行期可选）：交易列表页面把目标位置 100 格内的
     // Waystone 名称作为“距离”显示；未安装 Waystones 时自动降级为距离数字。
-    def waystonesJar = file('F:/MC/Instances/Rome1.21.1/mods/waystones-neoforge-1.21.1-21.1.42.jar')
+    def waystonesJar = file('F:/MC/Instances/Rome1.21.1/mods/waystones-neoforge-1.21.1-21.1.46.jar')
     if (waystonesJar.exists()) {
         implementation files(waystonesJar)
     }
     // Waystones 的方块实体类依赖 Balm API（同实例 mods 文件夹内）。
-    def balmJar = file('F:/MC/Instances/Rome1.21.1/mods/balm-neoforge-1.21.1-21.0.65.jar')
+    def balmJar = file('F:/MC/Instances/Rome1.21.1/mods/balm-neoforge-1.21.1-21.0.66.jar')
     if (balmJar.exists()) {
         implementation files(balmJar)
     }
@@ -86,7 +86,7 @@ dependencies {
     }
     // EclipticSeasons（仅编译期 + 运行期可选）：按季节动态修改白天长度，
     // 商队夜间赶路的“日落时刻”使用其 API 计算（未安装时回退原版日落 12000）。
-    def eclipticSeasonsJar = file('F:/MC/Instances/Rome1.21.1/mods/EclipticSeasons-1.21.1-neoforge-0.14.5.jar')
+    def eclipticSeasonsJar = file('F:/MC/Instances/Rome1.21.1/mods/EclipticSeasons-1.21.1-neoforge-0.15.0-rc-3.jar')
     if (eclipticSeasonsJar.exists()) {
         implementation files(eclipticSeasonsJar)
     }
