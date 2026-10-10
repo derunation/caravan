@@ -58,6 +58,7 @@
   "com.caravan.gui.trades.mode.single": "Single",
   "com.caravan.gui.trades.mode.repeat": "Repeat",
   "com.caravan.gui.trades.mode.ondemand": "On Demand",
+  "com.caravan.gui.trades.select.limit_reached": "Trade limit reached",
   "com.caravan.gui.trades.qty.auto": "Auto",
   "com.caravan.gui.trades.villager": "%s, %s, %s  %s %s",
   "com.caravan.gui.trades.villager_dist": "%s  %s %s",

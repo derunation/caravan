@@ -15,6 +15,7 @@ import com.ldtteam.blockui.Pane;
 import com.ldtteam.blockui.controls.Button;
 import com.ldtteam.blockui.controls.ItemIcon;
 import com.ldtteam.blockui.controls.Text;
+import com.ldtteam.blockui.controls.Tooltip;
 import com.ldtteam.blockui.views.ScrollingList;
 import com.ldtteam.blockui.views.View;
 import com.minecolonies.api.colony.buildings.views.IBuildingView;
@@ -394,6 +395,18 @@ public class WindowCaravanTradeList extends AbstractModuleWindow<CaravanTradeLis
             && moduleView.getNonDisabledCount() >= moduleView.getMaxSelection();
         select.setEnabled(!blocked);
         select.setText(Component.translatable(modeKey(moduleView.getMode(flatIndex))));
+        // 达到上限时给出说明；重新可用时必须清掉，否则会残留提示。
+        // 注意顺序：setEnabled(false) 会清空悬停面板，因此必须在它之后设置。
+        if (blocked)
+        {
+            final Tooltip limitTooltip = new Tooltip();
+            limitTooltip.setText(Component.translatable("com.caravan.gui.trades.select.limit_reached"));
+            select.setHoverPane(limitTooltip);
+        }
+        else
+        {
+            select.setHoverPane(null);
+        }
         // 按钮处理器改为“行内绑定”（捕获当前行索引），
         // 避免 BlockUI 列表行复用导致的按钮事件只对部分行生效的问题。
         select.setHandler(button -> modeClicked(flatIndex));

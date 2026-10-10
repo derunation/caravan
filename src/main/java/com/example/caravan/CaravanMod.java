@@ -7,6 +7,7 @@ import com.example.caravan.colony.buildings.modules.CaravanTradeRequestFactory;
 import com.example.caravan.colony.buildings.modules.CaravanTradeRequest;
 import com.example.caravan.colony.buildings.modules.CaravanTradeRequestable;
 import com.example.caravan.colony.buildings.modules.VillagerTradeEntry;
+import com.example.caravan.config.CaravanConfig;
 import com.example.caravan.init.ModBuildings;
 import com.example.caravan.init.ModJobs;
 import com.example.caravan.item.CaravanMarkerItem;
@@ -47,6 +48,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.fml.common.Mod;
@@ -138,8 +140,10 @@ public final class CaravanMod
     {
     }
 
-    public CaravanMod(final IEventBus modBus)
+    public CaravanMod(final IEventBus modBus, final ModContainer container)
     {
+        // 设置项（config/caravan-server.toml，可在游戏内用 Configured 编辑）。
+        CaravanConfig.register(container);
         BLOCKS.register(modBus);
         ITEMS.register(modBus);
         CREATIVE_TABS.register(modBus);

@@ -2,6 +2,7 @@ package com.example.caravan.colony.buildings.modules;
 
 import com.example.caravan.colony.jobs.JobCaravanLeader;
 import com.example.caravan.colony.jobs.JobCaravanMember;
+import com.example.caravan.config.CaravanConfig;
 import com.example.caravan.waystone.WaystoneHelper;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.ICitizenData;
@@ -451,10 +452,16 @@ public class CaravanTradeModule extends AbstractBuildingModule
         return next;
     }
 
-    /** 最大可选（非禁用）交易数：小屋等级 × 2。 */
+    /**
+     * 最大可选（非禁用）交易数 = 设置项「每级小屋可启用的交易数量」× 小屋等级。
+     * 设置项为 0 时表示无限制（返回 {@link Integer#MAX_VALUE}）。
+     *
+     * <p>该值是"能再开启多少"的上限：玩家把设置调小后，已经启用的交易不会被取消，
+     * 只是无法再开启新交易，直到手动关闭到低于上限为止。</p>
+     */
     public int getMaxSelection()
     {
-        return getBuilding().getBuildingLevel() * 2;
+        return CaravanConfig.maxSelectionsForLevel(getBuilding().getBuildingLevel());
     }
 
     /** 当前非禁用（已选择）的交易条目数。 */

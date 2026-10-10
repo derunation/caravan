@@ -27,6 +27,12 @@
 - 与旅行地图（JourneyMap）、Pathfinding Edition、EpicColonies 等常用附属模组兼容。
 - 属性、装备请求与敌对列表沿用 Minecolonies 原版机制。
 
+### 设置项
+- 配置文件 `config/caravan-server.toml`（服务端设置），可在游戏内用 [Configured](https://www.curseforge.com/minecraft/mc-mods/configured) 直接修改，改完即时生效。
+- `maxSelectionsPerLevel`：每级小屋可启用的交易数量，默认 `4`。单个小屋的上限 = 该数值 × 小屋等级（默认 5 级小屋 = 20 个交易）。接受任意非负整数，`0` 表示无限制。
+- 把该值调小不会取消任何已启用的交易，只会阻止启用新交易；需手动关闭到低于上限后才能继续开启。
+- 类型为服务端设置：在多人服务器上由服务端同步给客户端，界面显示与服务端校验一致。
+
 ---
 
 ## English Description
@@ -53,3 +59,9 @@
 ### Compatibility
 - Compatible with JourneyMap, Pathfinding Edition, EpicColonies, and other common add-ons.
 - Attributes, equipment requests, and hostile lists follow MineColonies' native mechanics.
+
+### Configuration
+- Config file: `config/caravan-server.toml` (server config). Edit it in game with [Configured](https://www.curseforge.com/minecraft/mc-mods/configured); changes take effect immediately.
+- `maxSelectionsPerLevel`: how many trades can be enabled per hut level, default `4`. The limit for one hut is this value multiplied by the hut level (a level 5 hut allows 20 trades by default). Any non-negative integer is accepted; `0` means unlimited.
+- Lowering the value never disables already enabled trades; it only prevents enabling new ones until you manually disable enough trades to drop below the limit.
+- Being a server config, on multiplayer servers the value is synced from the server to clients, so the GUI and the server-side check always agree.

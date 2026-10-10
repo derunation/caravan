@@ -58,6 +58,7 @@
   "com.caravan.gui.trades.mode.single": "单次",
   "com.caravan.gui.trades.mode.repeat": "重复",
   "com.caravan.gui.trades.mode.ondemand": "按需",
+  "com.caravan.gui.trades.select.limit_reached": "可启用交易数量达到上限",
   "com.caravan.gui.trades.qty.auto": "自动",
   "com.caravan.gui.trades.villager": "%s, %s, %s  %s %s",
   "com.caravan.gui.trades.villager_dist": "%s  %s %s",
