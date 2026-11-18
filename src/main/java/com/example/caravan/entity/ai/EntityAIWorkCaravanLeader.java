@@ -1166,8 +1166,20 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
     }
 
     /**
-     * EntityAIEatTask.GET_YOURSELF_SATURATION = 30），直接从商队任意一人的
-     * 物品栏中食用【菜单】页选定的食物（接入本体 FoodUtils 进食代码）。
+     * 商队自行进食：每个成员饱食度低于阈值时，直接从商队任意一人的物品栏中
+     * 食用【菜单】页选定的食物（接入本体 FoodUtils 进食代码），吃到目标值为止。
+     *
+     * <p>阈值来源（MineColonies 1.1.1420 把饱食度上限从 20 提到 60，食物回复量也
+     * 大幅上调，写死的绝对值会失去原有含义）：统一按"有效上限的 30% 触发、
+     * 吃到上限的 90%"，即旧版 20 上限下的 6 与 18。</p>
+     * <ul>
+     *   <li><b>未装 PathingEdition</b>：有效上限 = 本体的 {@link ICitizenData#MAX_SATURATION}
+     *       （1.1.1420 为 60 → 低于 18 触发、吃到 54）。</li>
+     *   <li><b>装了 PathingEdition</b>：它用 {@code CitizenDataMixinForLeisure} 覆写了
+     *       {@code increaseSaturation}，真实上限变成它自己的配置
+     *       {@code PathingConfig.maxSaturation}（默认 40，范围 10~100），
+     *       此时跟随该配置换算（默认 40 → 低于 12 触发、吃到 36）。</li>
+     * </ul>
      */
     private void feedCaravanFromSupplies()
     {
@@ -1179,6 +1191,8 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
             {
                 return;
             }
+            final double eatBelow = caravanEatBelowSaturation();
+            final double eatTarget = caravanEatTargetSaturation();
             final List<AbstractEntityCitizen> caravan = new ArrayList<>();
             caravan.add(worker);
             caravan.addAll(caravanMembers());
@@ -1200,13 +1214,13 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                 {
                     continue;
                 }
-                if (saturation >= 6.0D)
+                if (saturation >= eatBelow)
                 {
                     continue; // 饱食度足够，无需进食。
                 }
                 int eaten = 0;
                 double current = saturation;
-                while (current < 18.0D && eaten < 32)
+                while (current < eatTarget && eaten < 32)
                 {
                     boolean fedOne = false;
                     for (final InventoryCitizen inventory : allCaravanInventories())
@@ -1240,7 +1254,7 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
                     }
                     catch (final Exception ignored3)
                     {
-                        current = 18.0D; // 读取失败视为已吃饱，结束本轮。
+                        current = eatTarget; // 读取失败视为已吃饱，结束本轮。
                     }
                 }
                 foodConsumedTotal += eaten;
@@ -1249,6 +1263,138 @@ public class EntityAIWorkCaravanLeader extends AbstractEntityAIBasic<JobCaravanL
         catch (final Exception ignored)
         {
             // 进食失败不阻塞模拟。
+        }
+    }
+
+    /** PathingEdition 的 modId：它会覆写市民饱食度上限，此时不能用本体的 MAX_SATURATION。 */
+    private static final String PATHING_EDITION_MODID = "colonypathingedition";
+
+    /** PathingEdition 提供有效饱食度上限的配置类。 */
+    private static final String PATHING_EDITION_CONFIG_CLASS =
+        "com.arxyt.colonypathingedition.core.config.PathingConfig";
+
+    /** 读不到 PathingEdition 配置时的兜底（其 maxSaturation 的默认值）。 */
+    private static final double PATHING_EDITION_DEFAULT_SATURATION = 40.0D;
+
+    /** 读不到本体常量时的兜底上限（= MineColonies 1.1.1420+ 的 MAX_SATURATION；旧版为 20）。 */
+    private static final double FALLBACK_MAX_SATURATION = 60.0D;
+
+    /**
+     * 运行时读取 {@link ICitizenData#MAX_SATURATION}。
+     *
+     * <p>必须用反射而不是直接引用：它是 {@code static final int} 编译期常量，
+     * 本项目按 MineColonies 1.1.1285 编译（那时是 20），直接引用会把 20 内联进字节码，
+     * 在 1.1.1420（60）上就失效了。反射取到的是**运行期版本的真实值**。</p>
+     */
+    private static double citizenMaxSaturation()
+    {
+        try
+        {
+            final java.lang.reflect.Field field = ICitizenData.class.getField("MAX_SATURATION");
+            final Object value = field.get(null);
+            if (value instanceof Number number && number.doubleValue() > 0.0D)
+            {
+                return number.doubleValue();
+            }
+        }
+        catch (final Throwable ignored)
+        {
+            // 常量被改名或不可访问时走兜底。
+        }
+        return FALLBACK_MAX_SATURATION;
+    }
+
+    /**
+     * 触发进食的饱食度下限 = 有效上限的 30%。
+     *
+     * <p>旧版（上限 20）的 6 正好是 30%，这里保持同一比例；有效上限由
+     * {@link #caravanSaturationCap()} 决定（装了 PathingEdition 时跟随它自己的
+     * {@code maxSaturation} 配置，否则用本体的 {@code MAX_SATURATION}）。</p>
+     */
+    private static double caravanEatBelowSaturation()
+    {
+        return caravanSaturationCap() * 0.3D;
+    }
+
+    /**
+     * 吃到该饱食度为止 = 有效上限的 90%。
+     *
+     * <p>旧版（上限 20）的 18 正好是 90%，这里保持同一比例。</p>
+     */
+    private static double caravanEatTargetSaturation()
+    {
+        return caravanSaturationCap() * 0.9D;
+    }
+
+    /**
+     * 市民饱食度的**有效上限**。
+     *
+     * <p>装了 PathingEdition 时，它用 {@code CitizenDataMixinForLeisure} 覆写了
+     * {@code increaseSaturation}，真实上限是它自己的 {@code PathingConfig.maxSaturation}
+     * （默认 40，范围 10~100）；此时本体的 {@code ICitizenData.MAX_SATURATION}（60）
+     * 不再代表真实上限，必须跟随它的配置。未装时用本体常量。</p>
+     */
+    private static double caravanSaturationCap()
+    {
+        if (isPathingEditionLoaded())
+        {
+            final double pathingCap = pathingEditionMaxSaturation();
+            if (pathingCap > 0.0D)
+            {
+                return pathingCap;
+            }
+            // 读不到配置时退回到 PathingEdition 的默认值（40），仍是它接管后的量级。
+            return PATHING_EDITION_DEFAULT_SATURATION;
+        }
+        return citizenMaxSaturation();
+    }
+
+    /**
+     * 反射读取 PathingEdition 的 {@code PathingConfig.maxSaturation}。
+     *
+     * <p>该字段是 {@code ModConfigSpec.DoubleValue}，需要再调用 {@code get()}
+     * 取当前配置值；PathingEdition 未安装时类不存在，直接返回 -1 由调用方兜底。</p>
+     */
+    private static double pathingEditionMaxSaturation()
+    {
+        try
+        {
+            final Class<?> configClass = Class.forName(PATHING_EDITION_CONFIG_CLASS);
+            final java.lang.reflect.Field field = configClass.getField("maxSaturation");
+            final Object value = field.get(null);
+            if (value instanceof Number number)
+            {
+                return number.doubleValue();
+            }
+            if (value instanceof java.util.function.Supplier<?> supplier)
+            {
+                final Object supplied = supplier.get();
+                if (supplied instanceof Number number)
+                {
+                    return number.doubleValue();
+                }
+            }
+            if (value instanceof net.neoforged.neoforge.common.ModConfigSpec.DoubleValue configValue)
+            {
+                return configValue.get();
+            }
+        }
+        catch (final Throwable ignored)
+        {
+            // PathingEdition 未加载或字段改名：由调用方回退默认值。
+        }
+        return -1.0D;
+    }
+
+    private static boolean isPathingEditionLoaded()
+    {
+        try
+        {
+            return net.neoforged.fml.ModList.get().isLoaded(PATHING_EDITION_MODID);
+        }
+        catch (final Throwable ignored)
+        {
+            return false;
         }
     }
 

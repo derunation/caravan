@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '1.0.23'
 }
 
-version = '1.0.4'
+version = '1.0.5'
 group = 'com.example'
 
 base {
@@ -41,6 +41,24 @@ repositories {
 }
 
 dependencies {
+    // Optional integration jars live in the game instance's mods folder, whose file
+    // names carry version numbers that change on every mod update. Resolve them by
+    // glob instead of a fixed path so an instance update no longer silently drops
+    // them from the compile classpath (which breaks compilation of the optional
+    // Waystones / EclipticSeasons integration code).
+    def instanceMods = new File('F:/MC/Instances/Rome1.21.1/mods')
+    def resolveModJar = { String pattern ->
+        if (!instanceMods.exists()) {
+            return null
+        }
+        def matches = instanceMods.listFiles({ File f ->
+            f.isFile() && f.name.toLowerCase().matches(pattern)
+        } as java.io.FileFilter)
+        return matches == null || matches.length == 0
+            ? null
+            : matches.sort { a, b -> a.name <=> b.name }.last()
+    }
+
     // MineColonies 1.21.1 is not published on a public Maven, so the local
     // distribution jar (in the sibling "参考" reference folder) is used for compilation.
     implementation files(rootProject.file('../参考/minecolonies-1.1.1285-1.21.1.jar'))
@@ -72,13 +90,13 @@ dependencies {
     }
     // Waystones（仅编译期 + 运行期可选）：交易列表页面把目标位置 100 格内的
     // Waystone 名称作为“距离”显示；未安装 Waystones 时自动降级为距离数字。
-    def waystonesJar = file('F:/MC/Instances/Rome1.21.1/mods/waystones-neoforge-1.21.1-21.1.46.jar')
-    if (waystonesJar.exists()) {
+    def waystonesJar = resolveModJar('waystones-neoforge-.*\\.jar')
+    if (waystonesJar != null) {
         implementation files(waystonesJar)
     }
     // Waystones 的方块实体类依赖 Balm API（同实例 mods 文件夹内）。
-    def balmJar = file('F:/MC/Instances/Rome1.21.1/mods/balm-neoforge-1.21.1-21.0.66.jar')
-    if (balmJar.exists()) {
+    def balmJar = resolveModJar('balm-neoforge-.*\\.jar')
+    if (balmJar != null) {
         implementation files(balmJar)
     }
     // JourneyMap API（从实例的 journeymap jar 中提取的嵌套 API jar，编译期使用；
@@ -89,8 +107,8 @@ dependencies {
     }
     // EclipticSeasons（仅编译期 + 运行期可选）：按季节动态修改白天长度，
     // 商队夜间赶路的“日落时刻”使用其 API 计算（未安装时回退原版日落 12000）。
-    def eclipticSeasonsJar = file('F:/MC/Instances/Rome1.21.1/mods/EclipticSeasons-1.21.1-neoforge-0.15.0-rc-3.jar')
-    if (eclipticSeasonsJar.exists()) {
+    def eclipticSeasonsJar = resolveModJar('eclipticseasons-.*neoforge-.*\\.jar')
+    if (eclipticSeasonsJar != null) {
         implementation files(eclipticSeasonsJar)
     }
 }

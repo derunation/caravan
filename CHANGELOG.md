@@ -1,5 +1,23 @@
 # 更新日志 / Changelog
 
+## 1.0.5
+
+- **兼容 MineColonies 1.1.1420 的饱食度上限改动**：MineColonies 把市民饱食度上限
+  从 `20` 提到 `60`（`ICitizenData.MAX_SATURATION`），同时大幅上调了食物的饱食度回复量。
+  商队原先写死的进食阈值（低于 `6` 触发、吃到 `18`）在新体系下含义改变，现统一改为
+  **按"有效饱食度上限"等比换算**，保持旧版"上限 30% 触发、吃到上限 90%"的手感：
+  - **未安装 PathingEdition**：有效上限 = 运行期读到的 `ICitizenData.MAX_SATURATION`
+    （1.1.1420 为 60 → 低于 18 触发、吃到 54）。
+  - **已安装 PathingEdition**：它会用 `CitizenDataMixinForLeisure` 覆写 `increaseSaturation`，
+    真实上限变成它自己的 `PathingConfig.maxSaturation` 配置（默认 40，范围 10~100）。
+    此时**跟随该配置**换算（默认 40 → 低于 12 触发、吃到 36），
+    并把 `maxSaturation` 调到 60 时即与本体行为一致。读取失败时退回其默认值 40。
+  - `MAX_SATURATION` 与 `PathingConfig.maxSaturation` 均通过反射在运行期读取，
+    避免按 1.1.1285 编译时把旧值 `20` 内联进字节码而失效。
+- 核查结论：caravan 引用的 131 个 MineColonies 类在 1.1.1420 中**全部存在**，
+  mixin 目标方法（`tick`/`decide`/`shouldSleep`/`inCombat`/`getTaskReferencePoint`/
+  `updateJobPage`）签名未变，无需反射兼容改动。
+
 ## 1.0.4
 
 - **新增设置项**：`config/caravan-server.toml` 中的 `maxSelectionsPerLevel`（服务端设置，默认 `4`），
