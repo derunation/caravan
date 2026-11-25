@@ -18,6 +18,13 @@
   mixin 目标方法（`tick`/`decide`/`shouldSleep`/`inCombat`/`getTaskReferencePoint`/
   `updateJobPage`）签名未变，无需反射兼容改动。
 
+**English / 英文版**
+
+- Adapted to MineColonies' new citizen saturation changes.
+- When Pathfinding Edition is installed, its modified saturation system is used.
+- Feeding thresholds are derived from the effective saturation cap (30% to trigger eating, 90% to stop), and follow Pathfinding Edition's `maxSaturation` config when that mod is present.
+- Verification: all 131 MineColonies classes referenced by this mod still exist in 1.1.1420, and no mixin target method signature changed.
+
 ## 1.0.4
 
 - **新增设置项**：`config/caravan-server.toml` 中的 `maxSelectionsPerLevel`（服务端设置，默认 `4`），
